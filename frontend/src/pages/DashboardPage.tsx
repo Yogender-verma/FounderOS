@@ -379,6 +379,8 @@ export function DashboardPage() {
   };
 
   const openLinkedInDestination = (postText?: string, mode: 'chrome' | 'app' | 'auto' = 'auto') => {
+    const encodedText = postText ? encodeURIComponent(postText) : '';
+
     if (postText) {
       try {
         navigator.clipboard.writeText(postText);
@@ -389,8 +391,23 @@ export function DashboardPage() {
       }
     }
 
-    const webUrl = 'https://www.linkedin.com/feed/?shareActive=true';
-    const appUrl = 'linkedin://feed';
+    // Try System Native Share if available (pre-fills text directly into LinkedIn app/web share box)
+    if (postText && mode === 'auto' && typeof navigator !== 'undefined' && 'share' in navigator) {
+      navigator.share({
+        title: 'LinkedIn Launch Post',
+        text: postText
+      }).catch((err) => {
+        console.log('Native share dismissed or unsupported:', err);
+      });
+    }
+
+    const webUrl = encodedText 
+      ? `https://www.linkedin.com/feed/?shareActive=true&text=${encodedText}` 
+      : 'https://www.linkedin.com/feed/?shareActive=true';
+
+    const appUrl = encodedText 
+      ? `linkedin://share?text=${encodedText}` 
+      : 'linkedin://feed';
 
     if (mode === 'app') {
       window.location.href = appUrl;
