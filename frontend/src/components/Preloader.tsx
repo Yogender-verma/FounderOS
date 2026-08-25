@@ -1,11 +1,20 @@
+import { useEffect } from 'react';
 import { motion } from 'framer-motion';
 
 export function Preloader({ onComplete }: { onComplete: () => void }) {
+  useEffect(() => {
+    // Safety fallback to guarantee preloader dismisses and never blocks clicks
+    const timer = setTimeout(() => {
+      onComplete();
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [onComplete]);
+
   return (
     <motion.div 
       initial={{ opacity: 1 }}
       exit={{ opacity: 0, transition: { duration: 0.4, ease: "easeInOut" } }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-gray-50 dark:bg-founder-darkest"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-gray-50 dark:bg-founder-darkest pointer-events-none"
     >
       {/* Background radial glow */}
       <motion.div 

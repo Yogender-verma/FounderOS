@@ -44,6 +44,7 @@ import {
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTheme } from '../components/ThemeProvider';
+import { getApiUrl } from '../config';
 
 export function DashboardPage() {
   const { theme, setTheme } = useTheme();
@@ -156,7 +157,7 @@ export function DashboardPage() {
 
   const fetchHiringJobs = async () => {
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const apiUrl = getApiUrl();
       const res = await fetch(`${apiUrl}/api/hiring/jobs`);
       if (res.ok) {
         const data = await res.json();
@@ -174,7 +175,7 @@ export function DashboardPage() {
 
   const fetchJobDetail = async (id: number) => {
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const apiUrl = getApiUrl();
       const res = await fetch(`${apiUrl}/api/hiring/jobs/${id}`);
       if (res.ok) {
         const data = await res.json();
@@ -191,7 +192,7 @@ export function DashboardPage() {
     setIsCreatingJob(true);
     try {
       const token = localStorage.getItem('token');
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const apiUrl = getApiUrl();
       const skillsArray = newJobForm.required_skills.split(',').map(s => s.trim()).filter(Boolean);
 
       const res = await fetch(`${apiUrl}/api/hiring/jobs`, {
@@ -234,7 +235,7 @@ export function DashboardPage() {
     setIsAddingCandidate(true);
     try {
       const token = localStorage.getItem('token');
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const apiUrl = getApiUrl();
       const skillsArray = newCandidateForm.skills.split(',').map(s => s.trim()).filter(Boolean);
 
       const res = await fetch(`${apiUrl}/api/hiring/jobs/${selectedJobId}/candidates`, {
@@ -308,7 +309,7 @@ export function DashboardPage() {
     }
     
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const apiUrl = getApiUrl();
       const res = await fetch(`${apiUrl}/api/dashboard`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -354,7 +355,7 @@ export function DashboardPage() {
     if (!promptToSubmit.trim() || isAnalyzing) return;
 
     const token = localStorage.getItem('token');
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    const apiUrl = getApiUrl();
 
     try {
       const now = new Date();
@@ -394,7 +395,7 @@ export function DashboardPage() {
   // 1b. Explicit Delegate to CEO Agent
   const handleDelegateToCEO = async (taskId: number) => {
     const token = localStorage.getItem('token');
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    const apiUrl = getApiUrl();
 
     setIsAnalyzing(true);
     setActiveTab('CEO Agent');
@@ -424,7 +425,7 @@ export function DashboardPage() {
   // 2. Level A Approval: Approve CEO Plan & Directly Navigate to First Agent Option
   const handleApprovePlan = async (taskId: number, decision: string = 'APPROVED', feedback?: string) => {
     const token = localStorage.getItem('token');
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    const apiUrl = getApiUrl();
 
     try {
       const res = await fetch(`${apiUrl}/api/tasks/${taskId}/plan/approve`, {
@@ -455,7 +456,7 @@ export function DashboardPage() {
   // 3. Level A Rejection
   const handleRejectPlan = async (taskId: number) => {
     const token = localStorage.getItem('token');
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    const apiUrl = getApiUrl();
 
     try {
       const res = await fetch(`${apiUrl}/api/tasks/${taskId}/plan/reject`, {
@@ -476,7 +477,7 @@ export function DashboardPage() {
   // 4. Start Agent Task Execution (START TASK Button)
   const handleStartAgentTask = async (delegationId: number) => {
     const token = localStorage.getItem('token');
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    const apiUrl = getApiUrl();
 
     setIsRunningAgent(true);
     try {
@@ -502,7 +503,7 @@ export function DashboardPage() {
   // 5. Level B Approval: Approve Agent Result & Show Big Green "Approved" Modal
   const handleApproveAgentResult = async (delegationId: number, feedback?: string) => {
     const token = localStorage.getItem('token');
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    const apiUrl = getApiUrl();
 
     try {
       const res = await fetch(`${apiUrl}/api/agent-tasks/${delegationId}/approve`, {
@@ -622,7 +623,7 @@ export function DashboardPage() {
   // 5b. Reject Agent Task Result
   const handleRejectAgentResult = async (delegationId: number, feedback: string = 'Task result rejected by founder.') => {
     const token = localStorage.getItem('token');
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    const apiUrl = getApiUrl();
 
     try {
       const res = await fetch(`${apiUrl}/api/agent-tasks/${delegationId}/revise`, {
@@ -661,7 +662,7 @@ export function DashboardPage() {
   // 6. Level C Approval: Consequential Action Authorization
   const handleExecuteConsequentialAction = async (delegationId: number, actionId: string, actionName: string, payload: any = {}) => {
     const token = localStorage.getItem('token');
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    const apiUrl = getApiUrl();
 
     try {
       const res = await fetch(`${apiUrl}/api/agent-tasks/${delegationId}/consequential-action`, {
