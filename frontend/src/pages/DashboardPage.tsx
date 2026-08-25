@@ -360,12 +360,7 @@ export function DashboardPage() {
         }
 
         if (isMarketing && linkedinPostText) {
-          try {
-            await navigator.clipboard.writeText(linkedinPostText);
-          } catch (e) {
-            console.error(e);
-          }
-          window.open('https://www.linkedin.com/feed/?shareActive=true', '_blank');
+          openLinkedInDestination(linkedinPostText, 'auto');
         }
 
         // Display the Big Green "Approved" modal!
@@ -380,6 +375,44 @@ export function DashboardPage() {
       }
     } catch (err) {
       console.error('Failed to approve result:', err);
+    }
+  };
+
+  const openLinkedInDestination = (postText?: string, mode: 'chrome' | 'app' | 'auto' = 'auto') => {
+    if (postText) {
+      try {
+        navigator.clipboard.writeText(postText);
+        setCopiedText(true);
+        setTimeout(() => setCopiedText(false), 2500);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    const webUrl = 'https://www.linkedin.com/feed/?shareActive=true';
+    const appUrl = 'linkedin://feed';
+
+    if (mode === 'app') {
+      window.location.href = appUrl;
+    } else if (mode === 'chrome') {
+      window.open(webUrl, '_blank');
+    } else {
+      window.open(webUrl, '_blank');
+      setTimeout(() => {
+        try {
+          const iframe = document.createElement('iframe');
+          iframe.style.display = 'none';
+          iframe.src = appUrl;
+          document.body.appendChild(iframe);
+          setTimeout(() => {
+            if (document.body.contains(iframe)) {
+              document.body.removeChild(iframe);
+            }
+          }, 1000);
+        } catch (e) {
+          console.error(e);
+        }
+      }, 500);
     }
   };
 
@@ -1821,7 +1854,7 @@ export function DashboardPage() {
                           <div className="space-y-4">
                             <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400">Generated Campaign Collateral</h4>
                             <div className="space-y-2">
-                              <div className="flex justify-between items-center text-xs font-bold text-gray-700 dark:text-gray-300">
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-bold text-gray-700 dark:text-gray-300">
                                 <span className="flex items-center gap-1.5"><Megaphone size={14} className="text-[#0077B5]" /> LinkedIn Launch Post</span>
                                 <div className="flex items-center gap-2">
                                   <button 
@@ -1835,13 +1868,16 @@ export function DashboardPage() {
                                     {copiedText ? <Check size={12} /> : <Copy size={12} />} Copy Text
                                   </button>
                                   <button 
-                                    onClick={() => {
-                                      navigator.clipboard.writeText(resultObj.linkedin_post);
-                                      window.open('https://www.linkedin.com/feed/?shareActive=true', '_blank');
-                                    }}
-                                    className="px-3 py-1 bg-[#0077B5] hover:bg-[#006097] text-white rounded-lg text-[11px] font-extrabold flex items-center gap-1 shadow-sm transition-all cursor-pointer"
+                                    onClick={() => openLinkedInDestination(resultObj.linkedin_post, 'chrome')}
+                                    className="px-2.5 py-1 bg-[#0077B5] hover:bg-[#006097] text-white rounded-lg text-[11px] font-extrabold flex items-center gap-1 shadow-sm transition-all cursor-pointer"
                                   >
-                                    <Share2 size={12} /> Open LinkedIn & Post
+                                    <ExternalLink size={12} /> Open in Chrome
+                                  </button>
+                                  <button 
+                                    onClick={() => openLinkedInDestination(resultObj.linkedin_post, 'app')}
+                                    className="px-2.5 py-1 bg-gray-900 hover:bg-black dark:bg-[#1C162E] text-white rounded-lg text-[11px] font-extrabold flex items-center gap-1 border border-gray-700 dark:border-[#2D234A] shadow-sm transition-all cursor-pointer"
+                                  >
+                                    <Share2 size={12} /> Open in App
                                   </button>
                                 </div>
                               </div>
@@ -2351,26 +2387,29 @@ export function DashboardPage() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-[#0077B5] font-bold text-xs">
                       <Share2 size={16} />
-                      <span>LinkedIn Auto-Opened!</span>
+                      <span>LinkedIn Ready for Posting!</span>
                     </div>
                     <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#0077B5]/20 text-[#0077B5]">
                       TEXT COPIED ✓
                     </span>
                   </div>
                   <p className="text-xs text-gray-700 dark:text-gray-300">
-                    The generated post has been automatically copied to your clipboard. Paste (Ctrl+V) into LinkedIn, then click <strong>Done</strong> below to return to CEO Agent.
+                    Campaign post copied to clipboard! Select where to post, then click <strong>Done</strong> below to return to CEO Agent.
                   </p>
-                  <button
-                    onClick={() => {
-                      if (approvedModalData.linkedinPost) {
-                        navigator.clipboard.writeText(approvedModalData.linkedinPost);
-                      }
-                      window.open('https://www.linkedin.com/feed/?shareActive=true', '_blank');
-                    }}
-                    className="w-full py-2 bg-[#0077B5] hover:bg-[#006097] text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm"
-                  >
-                    <ExternalLink size={14} /> Re-Open LinkedIn & Copy Post
-                  </button>
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    <button
+                      onClick={() => openLinkedInDestination(approvedModalData.linkedinPost, 'chrome')}
+                      className="py-2.5 px-3 bg-[#0077B5] hover:bg-[#006097] text-white font-extrabold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm"
+                    >
+                      <ExternalLink size={14} /> Open in Chrome
+                    </button>
+                    <button
+                      onClick={() => openLinkedInDestination(approvedModalData.linkedinPost, 'app')}
+                      className="py-2.5 px-3 bg-gray-900 hover:bg-black dark:bg-[#1C162E] dark:hover:bg-[#251B38] text-white font-extrabold rounded-xl text-xs flex items-center justify-center gap-1.5 border border-gray-700 dark:border-[#2D234A] transition-all cursor-pointer shadow-sm"
+                    >
+                      <Share2 size={14} /> Open LinkedIn App
+                    </button>
+                  </div>
                 </div>
               )}
 
