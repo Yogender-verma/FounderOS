@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Text
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Text, Float
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from database import Base
@@ -267,3 +267,146 @@ class ExecutionLog(Base):
     deliverable_path = Column(String(500), nullable=True)
     log_details = Column(Text, default="{}")
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+# -----------------------------------------------------------------
+# Hiring Agent & InterviewOS Assessment Models
+# -----------------------------------------------------------------
+class Job(Base):
+    __tablename__ = "jobs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    task_id = Column(Integer, ForeignKey("tasks.id"), nullable=True)
+    title = Column(String(255), nullable=False, index=True)
+    department = Column(String(100), default="Engineering")
+    seniority = Column(String(50), default="Mid-Level")
+    target_compensation = Column(String(100), nullable=True)
+    required_skills = Column(Text, default="[]")  # JSON list of skills
+    experience_years = Column(Integer, default=2)
+    job_description = Column(Text, default="{}")  # JSON object with overview, responsibilities, perks
+    status = Column(String(50), default="OPEN")  # OPEN, CLOSED, FILLED
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    candidates = relationship("Candidate", back_populates="job", cascade="all, delete-orphan")
+
+
+class Candidate(Base):
+    __tablename__ = "candidates"
+
+    id = Column(Integer, primary_key=True, index=True)
+    job_id = Column(Integer, ForeignKey("jobs.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    name = Column(String(255), nullable=False)
+    email = Column(String(255), nullable=False)
+    resume_text = Column(Text, nullable=True)
+    skills = Column(Text, default="[]")  # JSON list of matched candidate skills
+    experience_years = Column(Integer, default=0)
+    resume_match_score = Column(Float, default=0.0)  # 0 to 100 percentage
+    status = Column(String(50), default="APPLIED")
+    # Progression: APPLIED, RESUME_REVIEW, SHORTLISTED, MCQ_PENDING, MCQ_COMPLETED, CODING_PENDING, CODING_COMPLETED, UNDER_REVIEW, RECOMMENDED, APPROVED, REJECTED
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    job = relationship("Job", back_populates="candidates")
+    assessments = relationship("AssessmentRound", back_populates="candidate", cascade="all, delete-orphan")
+    evaluation = relationship("CandidateEvaluation", back_populates="candidate", uselist=False, cascade="all, delete-orphan")
+
+
+class AssessmentRound(Base):
+    __tablename__ = "assessments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    candidate_id = Column(Integer, ForeignKey("candidates.id"), nullable=False)
+    job_id = Column(Integer, ForeignKey("jobs.id"), nullable=False)
+    round_type = Column(String(50), nullable=False)  # MCQ, CODING
+    status = Column(String(50), default="PENDING")  # PENDING, IN_PROGRESS, COMPLETED, FAILED
+    score = Column(Float, default=0.0)
+    duration_minutes = Column(Integer, default=20)
+    total_items = Column(Integer, default=20)
+    started_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+
+    candidate = relationship("Candidate", back_populates="assessments")
+
+
+class MCQQuestion(Base):
+    __tablename__ = "mcq_questions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    job_id = Column(Integer, ForeignKey("jobs.id"), nullable=False)
+    question_text = Column(Text, nullable=False)
+    options = Column(Text, nullable=False)  # JSON array of strings e.g. ["A", "B", "C", "D"]
+    correct_option_index = Column(Integer, nullable=False)
+    topic = Column(String(100), default="General")
+    difficulty = Column(String(50), default="MEDIUM")  # EASY, MEDIUM, HARD
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class CandidateMCQAnswer(Base):
+    __tablename__ = "mcq_answers"
+
+    id = Column(Integer, primary_key=True, index=True)
+    assessment_id = Column(Integer, ForeignKey("assessments.id"), nullable=False)
+    candidate_id = Column(Integer, ForeignKey("candidates.id"), nullable=False)
+    question_id = Column(Integer, ForeignKey("mcq_questions.id"), nullable=False)
+    selected_option_index = Column(Integer, nullable=False)
+    is_correct = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class CodingProblem(Base):
+    __tablename__ = "coding_problems"
+
+    id = Column(Integer, primary_key=True, index=True)
+    job_id = Column(Integer, ForeignKey("jobs.id"), nullable=False)
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=False)
+    difficulty = Column(String(50), default="MEDIUM")  # EASY, MEDIUM, HARD
+    time_limit_mins = Column(Integer, default=30)
+    examples = Column(Text, default="[]")  # JSON list of {input, output, explanation}
+    constraints = Column(Text, default="[]")  # JSON list of strings
+    starter_code = Column(Text, default="{}")  # JSON object with python, javascript, java, cpp starter code
+    test_cases = Column(Text, default="[]")  # JSON list of {input, expected_output, is_hidden}
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class CodingSubmission(Base):
+    __tablename__ = "coding_submissions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    assessment_id = Column(Integer, ForeignKey("assessments.id"), nullable=False)
+    candidate_id = Column(Integer, ForeignKey("candidates.id"), nullable=False)
+    problem_id = Column(Integer, ForeignKey("coding_problems.id"), nullable=False)
+    language = Column(String(50), default="python")  # python, javascript, java, cpp
+    code = Column(Text, nullable=False)
+    test_cases_passed = Column(Integer, default=0)
+    total_test_cases = Column(Integer, default=0)
+    status = Column(String(50), default="COMPLETED")  # PASSED, FAILED, ERROR, COMPLETED
+    stdout = Column(Text, nullable=True)
+    execution_time_ms = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class CandidateEvaluation(Base):
+    __tablename__ = "candidate_evaluations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    candidate_id = Column(Integer, ForeignKey("candidates.id"), nullable=False, unique=True)
+    job_id = Column(Integer, ForeignKey("jobs.id"), nullable=False)
+    resume_score = Column(Float, default=0.0)
+    mcq_score = Column(Float, default=0.0)
+    coding_score = Column(Float, default=0.0)
+    resume_weight = Column(Float, default=0.20)
+    mcq_weight = Column(Float, default=0.30)
+    coding_weight = Column(Float, default=0.50)
+    overall_score = Column(Float, default=0.0)  # Calculated weighted overall score
+    recommendation = Column(String(50), default="RECONSIDER")  # STRONG_HIRE, HIRE, RECONSIDER, REJECT
+    strengths = Column(Text, default="[]")  # JSON list of strengths
+    concerns = Column(Text, default="[]")  # JSON list of concerns
+    founder_decision = Column(String(50), default="PENDING")  # PENDING, APPROVED, REJECTED, REVIEW_AGAIN
+    decision_notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    candidate = relationship("Candidate", back_populates="evaluation")
+

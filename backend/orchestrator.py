@@ -445,6 +445,93 @@ class CEOOrchestrator:
                 {"id": "schedule_interviews", "name": "DISPATCH CALENDAR INVITES", "consequential": False}
             ]
 
+            # Ensure Job & Candidate models are created in DB for frontend pipeline integration
+            try:
+                existing_job = db.query(models.Job).filter(models.Job.task_id == task.id).first()
+                if not existing_job:
+                    from agent_system.gemini_client import GeminiClient
+                    from agent_system.agents.hiring_agent import HiringAgent as HA
+                    ha_instance = HA(GeminiClient())
+                    
+                    job = models.Job(
+                        user_id=user_id,
+                        task_id=task.id,
+                        title=ent["role"],
+                        department="Engineering",
+                        seniority="Mid-Level",
+                        target_compensation=salary_band,
+                        required_skills=json.dumps(["React", "JavaScript", "TypeScript", "Python"]),
+                        experience_years=2,
+                        status="OPEN"
+                    )
+                    db.add(job)
+                    db.commit()
+                    db.refresh(job)
+
+                    mcq_list = ha_instance.generate_mcq_questions(job.title, ["React", "JavaScript", "TypeScript", "Python"], count=20)
+                    for q in mcq_list:
+                        mcq_rec = models.MCQQuestion(
+                            job_id=job.id,
+                            question_text=q.get("question_text", ""),
+                            options=json.dumps(q.get("options", [])),
+                            correct_option_index=q.get("correct_option_index", 0),
+                            topic=q.get("topic", "General"),
+                            difficulty=q.get("difficulty", "MEDIUM")
+                        )
+                        db.add(mcq_rec)
+
+                    coding_prob = ha_instance.generate_coding_problem(job.title, ["Python", "JavaScript"])
+                    coding_rec = models.CodingProblem(
+                        job_id=job.id,
+                        title=coding_prob.get("title", "Remove Duplicates from Sorted Array"),
+                        description=coding_prob.get("description", ""),
+                        difficulty=coding_prob.get("difficulty", "MEDIUM"),
+                        time_limit_mins=coding_prob.get("time_limit_mins", 30),
+                        examples=json.dumps(coding_prob.get("examples", [])),
+                        constraints=json.dumps(coding_prob.get("constraints", [])),
+                        starter_code=json.dumps(coding_prob.get("starter_code", {})),
+                        test_cases=json.dumps(coding_prob.get("test_cases", []))
+                    )
+                    db.add(coding_rec)
+                    db.commit()
+
+                    for cand_item in candidates:
+                        cand_rec = models.Candidate(
+                            job_id=job.id,
+                            user_id=user_id,
+                            name=cand_item.get("name", "Rahul Sharma"),
+                            email=f"{cand_item.get('name', 'rahul').lower().replace(' ', '.')}@example.com",
+                            resume_text=f"Experienced in {cand_item.get('skills', ['React'])}. {cand_item.get('experience', '2 years exp')}.",
+                            skills=json.dumps(cand_item.get("skills", ["React", "JavaScript"])),
+                            experience_years=2,
+                            resume_match_score=float(cand_item.get("match_score", 90.0)),
+                            status="SHORTLISTED"
+                        )
+                        db.add(cand_rec)
+                        db.commit()
+                        db.refresh(cand_rec)
+
+                        mcq_round = models.AssessmentRound(
+                            candidate_id=cand_rec.id,
+                            job_id=job.id,
+                            round_type="MCQ",
+                            status="PENDING",
+                            duration_minutes=20,
+                            total_items=len(mcq_list)
+                        )
+                        coding_round = models.AssessmentRound(
+                            candidate_id=cand_rec.id,
+                            job_id=job.id,
+                            round_type="CODING",
+                            status="PENDING",
+                            duration_minutes=30,
+                            total_items=1
+                        )
+                        db.add_all([mcq_round, coding_round])
+                        db.commit()
+            except Exception as e:
+                print(f"Hiring Agent DB Sync Note: {e}")
+
         elif agent == "Legal":
             cand_name = "Rahul Sharma"
             if "Hiring" in upstream_outputs and "candidates" in upstream_outputs["Hiring"]:

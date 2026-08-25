@@ -1,11 +1,13 @@
 import time
+import json
 from typing import Dict, Any, List
 from ..gemini_client import GeminiClient
 
 class HiringAgent:
     """
-    Hiring Agent: Handles Job Descriptions, Talent Sourcing Pipelines, Candidate Profiles,
-    Interview Workflows, and Recruitment Communications.
+    Hiring Agent: Handles Job Requirements, Resume Screening, 
+    Round 1 MCQ Generation, Round 2 Coding Problem Generation, Candidate Scoring, 
+    Evaluation & Recommendations for Founder Approval.
     """
     def __init__(self, gemini_client: GeminiClient):
         self.gemini = gemini_client
@@ -16,110 +18,109 @@ class HiringAgent:
         context = context or {}
 
         llm_prompt = f"""
-You are the expert Talent Acquisition & Hiring Agent for an elite tech startup.
-Your role: Generate end-to-end recruitment pipelines, role specifications, interview rubrics, and candidate outreach.
+You are the expert Talent Acquisition & Technical Hiring AI Agent.
+Task Directive: "{prompt}"
+Context from Upstream (CEO/Budget): {context}
 
-Task Objective: "{prompt}"
-Context from Upstream (e.g. Budget/CEO): {context}
-
-Generate an exhaustive recruitment package. Return ONLY valid JSON with this exact schema:
+Generate an exhaustive hiring package. Return ONLY valid JSON with this exact schema:
 {{
-  "job_title": "Title of the Role",
+  "job_title": "Role Title (e.g. Frontend Developer)",
   "department": "Engineering" | "Product" | "Growth" | "Operations",
   "seniority": "Intern" | "Junior" | "Mid-Level" | "Senior" | "Lead",
-  "target_compensation": "Estimated salary or stipend range",
+  "target_compensation": "Estimated salary or stipend (e.g. ₹10k-₹25k/mo or $90k/yr)",
+  "experience_years": 2,
+  "required_skills": ["React", "JavaScript", "TypeScript", "HTML/CSS"],
   "job_description": {{
-    "overview": "Company mission and why this role matters",
-    "core_responsibilities": [
-      "Responsibility 1",
-      "Responsibility 2",
-      "Responsibility 3",
-      "Responsibility 4"
-    ],
-    "must_have_qualifications": [
-      "Qualification 1",
-      "Qualification 2",
-      "Qualification 3"
-    ],
-    "nice_to_have_skills": [
-      "Skill 1",
-      "Skill 2"
-    ],
-    "growth_and_perks": [
-      "Perk 1",
-      "Perk 2"
-    ]
+    "overview": "Role overview and impact",
+    "core_responsibilities": ["Responsibility 1", "Responsibility 2", "Responsibility 3"],
+    "must_have_qualifications": ["Qualification 1", "Qualification 2"],
+    "growth_and_perks": ["Perk 1", "Perk 2"]
   }},
-  "candidate_evaluation_rubric": [
-    {{"criterion": "Technical Expertise", "weight": "40%", "indicators": "Clean code architecture, system design, modern tech stack"}},
-    {{"criterion": "Execution Speed & Ownership", "weight": "30%", "indicators": "High velocity, bias for action, shipping mindset"}},
-    {{"criterion": "Communication & Culture Fit", "weight": "30%", "indicators": "Direct communication, curiosity, founder alignment"}}
-  ],
-  "interview_workflow": [
-    {{"stage": 1, "name": "Resume & GitHub Screen", "duration": "15 min", "focus": "Portfolio verification & relevant shipped projects"}},
-    {{"stage": 2, "name": "Technical Problem Solving", "duration": "45 min", "focus": "Live coding or take-home architecture review"}},
-    {{"stage": 3, "name": "Founder Alignment Chat", "duration": "30 min", "focus": "Mission, mindset, equity/compensation alignment"}}
-  ],
-  "outreach_templates": {{
-    "linkedin_inmail": "Direct, high-converting outreach message to prospective talent",
-    "cold_email_invite": "Subject and body for inviting a top-tier applicant",
-    "polite_rejection_email": "Respectful rejection email maintaining founder goodwill"
-  }},
-  "sourcing_channels": [
-    "GitHub Profiles & Open Source contributors",
-    "Wellfound / AngelList Startup Talent Pool",
-    "Twitter/X tech communities & specialized Discord servers"
+  "initial_candidates": [
+    {{
+      "name": "Rahul Sharma",
+      "email": "rahul.sharma@example.com",
+      "experience_years": 3,
+      "skills": ["React", "JavaScript", "TypeScript", "CSS"],
+      "resume_match_score": 91.0,
+      "status": "SHORTLISTED",
+      "resume_text": "3 years experience building responsive web interfaces in React and TypeScript."
+    }},
+    {{
+      "name": "Ananya Patel",
+      "email": "ananya.p@example.com",
+      "experience_years": 2,
+      "skills": ["React", "JavaScript", "Redux", "HTML"],
+      "resume_match_score": 88.0,
+      "status": "SHORTLISTED",
+      "resume_text": "2 years experience in React frontend development and state management."
+    }},
+    {{
+      "name": "Arjun Verma",
+      "email": "arjun.v@example.com",
+      "experience_years": 1,
+      "skills": ["JavaScript", "HTML", "CSS"],
+      "resume_match_score": 52.0,
+      "status": "REJECTED",
+      "resume_text": "Junior developer with basic HTML/JS experience."
+    }}
   ]
 }}
 """
 
         fallback = {
-            "job_title": "Full Stack Engineer",
+            "job_title": "Frontend Developer",
             "department": "Engineering",
-            "seniority": "Mid-to-Senior",
-            "target_compensation": "$90,000 - $130,000 / yr + Equity (or ₹10k-₹25k/mo for intern)",
+            "seniority": "Mid-Level",
+            "target_compensation": "₹15,000 - ₹25,000 / month (or $80,000 / yr)",
+            "experience_years": 2,
+            "required_skills": ["React", "JavaScript", "TypeScript", "HTML/CSS"],
             "job_description": {
-                "overview": "Join our fast-moving startup team to architect high-performance web applications and agentic workflows.",
+                "overview": "Join our founding team to build high-performance web applications and agent dashboards.",
                 "core_responsibilities": [
-                    "Design, build, and deploy full-stack features using modern frameworks (FastAPI, React/Next.js, TypeScript)",
-                    "Integrate real-time multi-agent workflows and autonomous pipeline orchestrators",
-                    "Optimize database queries, API latency, and front-end render performance",
-                    "Collaborate directly with founders to iterate on product specs and customer feedback"
+                    "Develop modular components in React, TypeScript, and Tailwind CSS",
+                    "Integrate RESTful APIs and real-time WebSocket state updates",
+                    "Optimize frontend render performance and accessibility"
                 ],
                 "must_have_qualifications": [
-                    "Strong proficiency in Python (FastAPI/SQLAlchemy) and TypeScript/React",
-                    "Demonstrated track record of shipping end-to-end web applications",
-                    "Solid understanding of relational databases (PostgreSQL/SQLite) and state machines"
-                ],
-                "nice_to_have_skills": [
-                    "Experience with LLM APIs, prompt orchestration, and autonomous agent loops",
-                    "Familiarity with TailwindCSS, Vite, and containerized deployments"
+                    "2+ years experience with React & TypeScript",
+                    "Demonstrated portfolio of shipped web applications",
+                    "Solid grasp of JavaScript async patterns and DOM rendering"
                 ],
                 "growth_and_perks": [
-                    "Competitive compensation with high-upside equity package",
-                    "Direct mentorship from founding team with rapid leadership career trajectory",
-                    "Flexible remote setup and home office stipend"
+                    "Direct founder mentorship",
+                    "High equity upside potential",
+                    "Flexible remote setup"
                 ]
             },
-            "candidate_evaluation_rubric": [
-                {"criterion": "Technical Architecture & Code Quality", "weight": "40%", "indicators": "Clean abstractions, robust error handling, schema design"},
-                {"criterion": "Execution Velocity & Problem Solving", "weight": "35%", "indicators": "Ability to unblock oneself, fast prototyping, pragmatic choices"},
-                {"criterion": "Culture & Communication", "weight": "25%", "indicators": "Clear asynchronous communication, radical ownership, high energy"}
-            ],
-            "interview_workflow": [
-                {"stage": 1, "name": "Async Screening & Code Review", "duration": "15 min", "focus": "Review GitHub repositories, previous projects, and baseline skills"},
-                {"stage": 2, "name": "Technical Deep Dive", "duration": "45 min", "focus": "System architecture, live problem breakdown, and API design"},
-                {"stage": 3, "name": "Founder Culture & Offer Discussion", "duration": "30 min", "focus": "Vision alignment, role expectations, and offer negotiation"}
-            ],
-            "outreach_templates": {
-                "linkedin_inmail": "Hi [Name], I came across your impressive work on [Project/Repo]. We're building FounderOS (an autonomous multi-agent operating system) and looking for an exceptional engineer to lead core workflows. Would love to share what we're building!",
-                "cold_email_invite": "Subject: Building the future of autonomous startup operations - Quick chat?\n\nHi [Name],\n\nYour background in [Skill] caught our eye. We're assembling an elite founding engineering team. Let's do a quick 15-minute intro this week.",
-                "polite_rejection_email": "Subject: Update on your application\n\nHi [Name],\n\nThank you for taking the time to speak with us. While we are proceeding with another candidate whose background aligns more closely with our current sprint priorities, we were very impressed by your experience and hope to stay connected."
-            },
-            "sourcing_channels": [
-                "GitHub Talent & Repo Contributors",
-                "Wellfound (AngelList) Talent",
-                "Startup Engineering Discords & Twitter"
+            "initial_candidates": [
+                {
+                    "name": "Rahul Sharma",
+                    "email": "rahul.sharma@example.com",
+                    "experience_years": 3,
+                    "skills": ["React", "JavaScript", "TypeScript", "CSS"],
+                    "resume_match_score": 91.0,
+                    "status": "SHORTLISTED",
+                    "resume_text": "3 years experience building responsive web interfaces in React and TypeScript."
+                },
+                {
+                    "name": "Ananya Patel",
+                    "email": "ananya.p@example.com",
+                    "experience_years": 2,
+                    "skills": ["React", "JavaScript", "Redux", "HTML"],
+                    "resume_match_score": 88.0,
+                    "status": "SHORTLISTED",
+                    "resume_text": "2 years experience in React frontend development and state management."
+                },
+                {
+                    "name": "Arjun Verma",
+                    "email": "arjun.v@example.com",
+                    "experience_years": 1,
+                    "skills": ["JavaScript", "HTML", "CSS"],
+                    "resume_match_score": 52.0,
+                    "status": "REJECTED",
+                    "resume_text": "Junior developer with basic HTML/JS experience."
+                }
             ]
         }
 
@@ -131,15 +132,225 @@ Generate an exhaustive recruitment package. Return ONLY valid JSON with this exa
 
         elapsed_ms = int((time.time() - start_time) * 1000)
         data = res.get("data", fallback)
-        role = data.get("job_title", "Candidate")
+        role = data.get("job_title", "Frontend Developer")
 
         return {
             "agent_name": self.name,
             "intent": "HIRING_PIPELINE_GENERATION",
             "input_prompt": prompt,
             "status": "COMPLETED",
-            "result_summary": f"Completed recruitment pipeline, job description, and interview rubric for {role}.",
+            "result_summary": f"Formulated hiring requirement & resume screening for {role}. Shortlisted top candidate matches.",
             "artifact_payload": data,
             "tokens_used": res.get("tokens_used", 0),
             "execution_time_ms": elapsed_ms
         }
+
+    def generate_mcq_questions(self, role_title: str, required_skills: List[str], count: int = 20) -> List[Dict[str, Any]]:
+        """
+        Generates role-specific MCQ questions (default 20 questions) with topic, difficulty, options, and correct index.
+        """
+        skills_str = ", ".join(required_skills) or "React, JavaScript, TypeScript, Web Fundamentals"
+        prompt = f"""
+Generate exactly {count} technical multiple-choice (MCQ) questions for the role: "{role_title}".
+Target Skills: {skills_str}.
+
+Return JSON array of {count} objects:
+[
+  {{
+    "question_text": "What is the primary purpose of React.useMemo hook?",
+    "options": [
+      "To cache the result of a calculation between re-renders",
+      "To mutate DOM directly",
+      "To handle side effects on mount",
+      "To trigger re-render on state change"
+    ],
+    "correct_option_index": 0,
+    "topic": "React",
+    "difficulty": "MEDIUM"
+  }}
+]
+"""
+
+        fallback_questions = [
+            {
+                "question_text": "Which React hook is designed to memoize expensive calculation values across renders?",
+                "options": ["useEffect", "useMemo", "useCallback", "useRef"],
+                "correct_option_index": 1,
+                "topic": "React",
+                "difficulty": "EASY"
+            },
+            {
+                "question_text": "What is the return type of typeof null in JavaScript?",
+                "options": ["'null'", "'undefined'", "'object'", "'number'"],
+                "correct_option_index": 2,
+                "topic": "JavaScript",
+                "difficulty": "EASY"
+            },
+            {
+                "question_text": "In TypeScript, what keyword allows creating a type from the keys of an existing type?",
+                "options": ["typeof", "keyof", "enum", "extends"],
+                "correct_option_index": 1,
+                "topic": "TypeScript",
+                "difficulty": "MEDIUM"
+            },
+            {
+                "question_text": "Which HTTP status code represents 'Unprocessable Entity'?",
+                "options": ["400", "401", "404", "422"],
+                "correct_option_index": 3,
+                "topic": "Web Fundamentals",
+                "difficulty": "MEDIUM"
+            },
+            {
+                "question_text": "How does React fiber architecture achieve non-blocking rendering?",
+                "options": [
+                    "By running on separate web worker threads",
+                    "By breaking render work into units and pausing/prioritizing them",
+                    "By compiling JSX directly into WebAssembly",
+                    "By disabling virtual DOM comparisons"
+                ],
+                "correct_option_index": 1,
+                "topic": "React",
+                "difficulty": "HARD"
+            }
+        ]
+
+        res = self.gemini.generate_json(
+            prompt=prompt,
+            system_instruction="Output strictly valid JSON array of MCQ objects.",
+            fallback_data={"questions": fallback_questions}
+        )
+        data = res.get("data", {})
+        if isinstance(data, list):
+            return data
+        return data.get("questions", fallback_questions)
+
+    def generate_coding_problem(self, role_title: str, required_skills: List[str]) -> Dict[str, Any]:
+        """
+        Generates a role-specific coding problem with problem description, examples, constraints,
+        starter code, and test cases.
+        """
+        skills_str = ", ".join(required_skills) or "React, JavaScript, Python"
+        prompt = """
+Generate an algorithmic coding problem suitable for a 30-minute Coding Assessment for role: "%s".
+Target Skills: %s.
+
+Return JSON object:
+{
+  "title": "Remove Duplicates from Sorted Array",
+  "description": "Given a sorted array `nums`, remove the duplicates in-place such that each element appears only once and return the new length.",
+  "difficulty": "MEDIUM",
+  "time_limit_mins": 30,
+  "examples": [
+    {"input": "[1, 1, 2]", "output": "2", "explanation": "Your function should return length = 2, with the first two elements being 1 and 2."}
+  ],
+  "constraints": [
+    "1 <= nums.length <= 3 * 10^4",
+    "-100 <= nums[i] <= 100",
+    "nums is sorted in non-decreasing order."
+  ],
+  "starter_code": {
+    "python": "def solution(nums_str):\\n    # Write your python code here\\n    # Example input: '[1, 1, 2]'\\n    import json\\n    nums = json.loads(nums_str)\\n    unique = list(dict.fromkeys(nums))\\n    return len(unique)\\n",
+    "javascript": "function solution(inputStr) {\\n  const nums = JSON.parse(inputStr);\\n  const unique = Array.from(new Set(nums));\\n  return unique.length;\\n}\\n",
+    "java": "public class Solution {\\n    public static void main(String[] args) {\\n        // Java implementation\\n    }\\n}",
+    "cpp": "#include <iostream>\\nint main() {\\n    return 0;\\n}"
+  },
+  "test_cases": [
+    {"input": "[1, 1, 2]", "expected_output": "2"},
+    {"input": "[0,0,1,1,1,2,2,3,3,4]", "expected_output": "5"},
+    {"input": "[1, 2, 3]", "expected_output": "3"}
+  ]
+}
+""" % (role_title, skills_str)
+
+        fallback = {
+            "title": "Remove Duplicates from Sorted Array",
+            "description": "Given a sorted array `nums`, remove the duplicates in-place such that each element appears only once and return the new length.",
+            "difficulty": "MEDIUM",
+            "time_limit_mins": 30,
+            "examples": [
+                {"input": "[1, 1, 2]", "output": "2", "explanation": "Function returns length 2."}
+            ],
+            "constraints": [
+                "1 <= nums.length <= 3 * 10^4",
+                "nums is sorted in non-decreasing order."
+            ],
+            "starter_code": {
+                "python": "def solution(nums_str):\n    import json\n    nums = json.loads(nums_str)\n    unique = list(dict.fromkeys(nums))\n    return len(unique)\n",
+                "javascript": "function solution(inputStr) {\n  const nums = JSON.parse(inputStr);\n  return Array.from(new Set(nums)).length;\n}\n",
+                "java": "// Java starter code",
+                "cpp": "// C++ starter code"
+            },
+            "test_cases": [
+                {"input": "[1, 1, 2]", "expected_output": "2"},
+                {"input": "[0,0,1,1,1,2,2,3,3,4]", "expected_output": "5"},
+                {"input": "[1, 2, 3]", "expected_output": "3"}
+            ]
+        }
+
+        res = self.gemini.generate_json(
+            prompt=prompt,
+            system_instruction="Output strictly valid JSON coding problem spec.",
+            fallback_data=fallback
+        )
+        return res.get("data", fallback)
+
+    def generate_candidate_evaluation(
+        self, 
+        candidate_name: str, 
+        resume_score: float, 
+        mcq_score: float, 
+        coding_score: float,
+        resume_weight: float = 0.20,
+        mcq_weight: float = 0.30,
+        coding_weight: float = 0.50
+    ) -> Dict[str, Any]:
+        """
+        Generates candidate evaluation, weighted score, recommendation, strengths, and concerns.
+        """
+        overall = round((resume_score * resume_weight) + (mcq_score * mcq_weight) + (coding_score * coding_weight), 1)
+        
+        if overall >= 85:
+            rec = "STRONG_HIRE"
+        elif overall >= 75:
+            rec = "HIRE"
+        elif overall >= 60:
+            rec = "RECONSIDER"
+        else:
+            rec = "REJECT"
+
+        prompt = f"""
+Candidate: {candidate_name}
+Resume Score (20%): {resume_score}%
+MCQ Score (30%): {mcq_score}%
+Coding Score (50%): {coding_score}%
+Calculated Overall Score: {overall}%
+Base Recommendation: {rec}
+
+Generate strengths & concerns analysis. Return JSON:
+{{
+  "recommendation": "{rec}",
+  "strengths": [
+    "Strong mastery of core concepts",
+    "High execution speed in coding assessment"
+  ],
+  "concerns": [
+    "Minor gaps in edge case handling"
+  ]
+}}
+"""
+
+        fallback = {
+            "recommendation": rec,
+            "strengths": ["Strong technical foundation", "High score in coding assessment"],
+            "concerns": ["Limited experience in large-scale architecture"]
+        }
+
+        res = self.gemini.generate_json(
+            prompt=prompt,
+            system_instruction="Output strictly valid JSON evaluation summary.",
+            fallback_data=fallback
+        )
+        data = res.get("data", fallback)
+        data["overall_score"] = overall
+        data["recommendation"] = data.get("recommendation", rec)
+        return data

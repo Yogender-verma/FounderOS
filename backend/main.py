@@ -281,6 +281,10 @@ def get_audit_logs(skip: int = 0, limit: int = 50, db: Session = Depends(get_db)
 from agent_routes import router as agent_router
 app.include_router(agent_router)
 
+# Include Hiring Agent & Assessment Engine Router
+from hiring_routes import router as hiring_router
+app.include_router(hiring_router)
+
 # -----------------------------------------------------------------
 # Mount Unified Frontend Single-Page Application (SPA)
 # -----------------------------------------------------------------
@@ -341,3 +345,7 @@ async def serve_spa_and_assets(full_path: str):
             return FileResponse(index_file, media_type="text/html")
 
     return HTMLResponse("<h2>FounderOS Backend is Online</h2><p>Frontend dist directory not found.</p>")
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)

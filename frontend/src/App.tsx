@@ -6,6 +6,8 @@ import { HomePage } from './pages/HomePage';
 import { ContactPage } from './pages/ContactPage';
 import { AuthPage } from './pages/AuthPage';
 import { DashboardPage } from './pages/DashboardPage';
+import { AssessmentPage } from './pages/AssessmentPage';
+import { CandidateDetailPage } from './pages/CandidateDetailPage';
 
 function App() {
   const [loading, setLoading] = useState(true);
@@ -33,6 +35,10 @@ function App() {
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/dashboard/:tabId" element={<DashboardPage />} />
+            <Route path="/hiring" element={<DashboardPage />} />
+            <Route path="/hiring/jobs/:jobId" element={<DashboardPage />} />
+            <Route path="/hiring/candidates/:candidateId" element={<CandidateDetailPage />} />
+            <Route path="/hiring/assessment/:assessmentId" element={<AssessmentPage />} />
           </Routes>
         </motion.div>
       )}

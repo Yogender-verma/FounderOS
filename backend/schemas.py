@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 from typing import List, Optional, Any, Dict
 from datetime import datetime
 
@@ -10,7 +10,7 @@ class TokenData(BaseModel):
     email: Optional[str] = None
 
 class UserBase(BaseModel):
-    email: EmailStr
+    email: str
     full_name: Optional[str] = None
     picture: Optional[str] = None
 
@@ -25,7 +25,7 @@ class User(UserBase):
         from_attributes = True
 
 class SocialLogin(BaseModel):
-    email: EmailStr
+    email: str
     full_name: Optional[str] = None
     picture: Optional[str] = None
 
@@ -242,4 +242,44 @@ class Workflow(WorkflowBase):
 
     class Config:
         from_attributes = True
+
+
+# -----------------------------------------------------------------
+# Hiring Agent Schemas
+# -----------------------------------------------------------------
+class JobCreate(BaseModel):
+    title: str
+    department: Optional[str] = "Engineering"
+    seniority: Optional[str] = "Mid-Level"
+    target_compensation: Optional[str] = None
+    required_skills: Optional[List[str]] = []
+    experience_years: Optional[int] = 2
+
+class CandidateCreate(BaseModel):
+    name: str
+    email: str
+    resume_text: Optional[str] = None
+    skills: Optional[List[str]] = []
+    experience_years: Optional[int] = 0
+
+class MCQAnswerItem(BaseModel):
+    question_id: int
+    selected_option_index: int
+
+class MCQSubmitRequest(BaseModel):
+    answers: List[MCQAnswerItem]
+
+class CodingRunRequest(BaseModel):
+    code: str
+    language: Optional[str] = "python"
+    custom_input: Optional[str] = None
+
+class CodingSubmitRequest(BaseModel):
+    code: str
+    language: Optional[str] = "python"
+
+class FounderDecisionRequest(BaseModel):
+    decision: str  # APPROVED, REJECTED, REVIEW_AGAIN
+    notes: Optional[str] = None
+
 

@@ -5,12 +5,9 @@ import {
   ClipboardList, 
   Bot, 
   GitBranch, 
-  Cpu, 
   CheckSquare, 
   Play, 
   Activity, 
-  FileText, 
-  Link as LinkIcon, 
   Settings, 
   Building2, 
   ChevronDown, 
@@ -82,6 +79,194 @@ export function DashboardPage() {
     linkedinPost?: string;
   } | null>(null);
 
+  // Approvals workspace sub-tab state ('in_working' vs 'completed')
+  const [approvalsSubTab, setApprovalsSubTab] = useState<'in_working' | 'completed'>('in_working');
+
+  // Executions workspace sub-tab state ('executing' vs 'completed')
+  const [executionsSubTab, setExecutionsSubTab] = useState<'executing' | 'completed'>('executing');
+
+  // Founder Profile Settings state
+  const [profileForm, setProfileForm] = useState({
+    name: 'Founder CEO',
+    email: 'founder@founderos.io',
+    linkedin: 'https://linkedin.com/in/founder',
+    twitter: '',
+    telegram: '',
+    whatsapp: ''
+  });
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+
+  useEffect(() => {
+    const storedProfile = localStorage.getItem('founder_profile');
+    if (storedProfile) {
+      try {
+        const parsed = JSON.parse(storedProfile);
+        setProfileForm(prev => ({ ...prev, ...parsed }));
+        if (parsed.name) setUserName(parsed.name);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }, []);
+
+  const handleProfileSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingProfile(true);
+    try {
+      localStorage.setItem('founder_profile', JSON.stringify(profileForm));
+      const storedUser = localStorage.getItem('user');
+      const userObj = storedUser ? JSON.parse(storedUser) : {};
+      userObj.name = profileForm.name;
+      userObj.email = profileForm.email;
+      localStorage.setItem('user', JSON.stringify(userObj));
+      setUserName(profileForm.name);
+
+      setActionSuccessMessage('✓ Founder Profile Settings updated successfully!');
+      setTimeout(() => setActionSuccessMessage(null), 4000);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
+  // Hiring Agent specific state
+  const [hiringJobs, setHiringJobs] = useState<any[]>([]);
+  const [selectedJobId, setSelectedJobId] = useState<number | null>(null);
+  const [selectedJobDetail, setSelectedJobDetail] = useState<any | null>(null);
+  const [isCreatingJobModalOpen, setIsCreatingJobModalOpen] = useState(false);
+  const [isAddCandidateModalOpen, setIsAddCandidateModalOpen] = useState(false);
+  const [isCreatingJob, setIsCreatingJob] = useState(false);
+  const [isAddingCandidate, setIsAddingCandidate] = useState(false);
+  const [newJobForm, setNewJobForm] = useState({
+    title: 'React Developer',
+    department: 'Engineering',
+    seniority: 'Mid-Level',
+    target_compensation: '$90,000 / yr',
+    required_skills: 'React, JavaScript, TypeScript, Python',
+    experience_years: 2
+  });
+  const [newCandidateForm, setNewCandidateForm] = useState({
+    name: '',
+    email: '',
+    skills: 'React, TypeScript, CSS',
+    experience_years: 2,
+    resume_text: ''
+  });
+
+  const fetchHiringJobs = async () => {
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const res = await fetch(`${apiUrl}/api/hiring/jobs`);
+      if (res.ok) {
+        const data = await res.json();
+        setHiringJobs(data);
+        if (data.length > 0 && !selectedJobId) {
+          const firstId = data[0].id;
+          setSelectedJobId(firstId);
+          fetchJobDetail(firstId);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch hiring jobs:', err);
+    }
+  };
+
+  const fetchJobDetail = async (id: number) => {
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const res = await fetch(`${apiUrl}/api/hiring/jobs/${id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setSelectedJobDetail(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch job detail:', err);
+    }
+  };
+
+  const handleCreateJobSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newJobForm.title.trim() || isCreatingJob) return;
+    setIsCreatingJob(true);
+    try {
+      const token = localStorage.getItem('token');
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const skillsArray = newJobForm.required_skills.split(',').map(s => s.trim()).filter(Boolean);
+
+      const res = await fetch(`${apiUrl}/api/hiring/jobs`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          title: newJobForm.title,
+          department: newJobForm.department,
+          seniority: newJobForm.seniority,
+          target_compensation: newJobForm.target_compensation,
+          required_skills: skillsArray,
+          experience_years: Number(newJobForm.experience_years)
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setActionSuccessMessage(`✓ Job Requisition '${newJobForm.title}' created with 20 MCQs and Coding problem!`);
+        setTimeout(() => setActionSuccessMessage(null), 4000);
+        setIsCreatingJobModalOpen(false);
+        await fetchHiringJobs();
+        if (data.job_id) {
+          setSelectedJobId(data.job_id);
+          fetchJobDetail(data.job_id);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to create hiring job:', err);
+    } finally {
+      setIsCreatingJob(false);
+    }
+  };
+
+  const handleAddCandidateSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedJobId || !newCandidateForm.name.trim() || isAddingCandidate) return;
+    setIsAddingCandidate(true);
+    try {
+      const token = localStorage.getItem('token');
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const skillsArray = newCandidateForm.skills.split(',').map(s => s.trim()).filter(Boolean);
+
+      const res = await fetch(`${apiUrl}/api/hiring/jobs/${selectedJobId}/candidates`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: newCandidateForm.name,
+          email: newCandidateForm.email,
+          skills: skillsArray,
+          experience_years: Number(newCandidateForm.experience_years),
+          resume_text: newCandidateForm.resume_text
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setActionSuccessMessage(`✓ Candidate ${data.name} screened! Match score: ${data.resume_match_score}%. Status: ${data.status}.`);
+        setTimeout(() => setActionSuccessMessage(null), 4000);
+        setIsAddCandidateModalOpen(false);
+        setNewCandidateForm({ name: '', email: '', skills: 'React, TypeScript, CSS', experience_years: 2, resume_text: '' });
+        fetchJobDetail(selectedJobId);
+      }
+    } catch (err) {
+      console.error('Failed to add candidate:', err);
+    } finally {
+      setIsAddingCandidate(false);
+    }
+  };
+
   // Global Search state & refs
   const [globalSearchQuery, setGlobalSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -148,6 +333,7 @@ export function DashboardPage() {
 
   useEffect(() => {
     fetchDashboardData();
+    fetchHiringJobs();
 
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
@@ -525,13 +711,9 @@ export function DashboardPage() {
         { name: 'Legal Agent', icon: <Scale size={16} /> }
       ]
     },
-    { name: 'Workflow', icon: <GitBranch size={18} /> },
-    { name: 'Memory', icon: <Cpu size={18} /> },
     { name: 'Approvals', icon: <CheckSquare size={18} /> },
     { name: 'Executions', icon: <Play size={18} /> },
-    { name: 'Monitoring', icon: <Activity size={18} /> },
-    { name: 'Audit Logs', icon: <FileText size={18} /> },
-    { name: 'Integrations', icon: <LinkIcon size={18} /> },
+    { name: 'Settings', icon: <Settings size={18} /> },
   ];
 
   const allNames = sidebarItems.reduce((acc: string[], item: any) => {
@@ -548,13 +730,8 @@ export function DashboardPage() {
     { name: 'Marketing Agent', category: 'AI Workforce', description: 'Go-to-market strategies, campaign models & viral social copy', tab: 'Marketing Agent', icon: Megaphone },
     { name: 'Finance Agent', category: 'AI Workforce', description: 'Runway calculations, burn rate models & pricing strategies', tab: 'Finance Agent', icon: DollarSign },
     { name: 'Legal Agent', category: 'AI Workforce', description: 'Contracts, offer letters, NDAs & IP assignments', tab: 'Legal Agent', icon: Scale },
-    { name: 'Workflow', category: 'System Architecture', description: 'Graph execution records & multi-agent DAG pipelines', tab: 'Workflow', icon: GitBranch },
-    { name: 'Memory', category: 'System Architecture', description: 'Conversational context & cross-session memory store', tab: 'Memory', icon: Cpu },
     { name: 'Approvals', category: 'Governance', description: 'Human-in-the-loop plan, result & action authorization gates', tab: 'Approvals', icon: CheckSquare },
     { name: 'Executions', category: 'System Architecture', description: 'Step-by-step audit logs, runtimes & token metrics', tab: 'Executions', icon: Play },
-    { name: 'Monitoring', category: 'System Architecture', description: 'System health, agent workloads & execution statistics', tab: 'Monitoring', icon: Activity },
-    { name: 'Audit Logs', category: 'Governance', description: 'Immutable historical audit trails of all agent actions', tab: 'Audit Logs', icon: FileText },
-    { name: 'Integrations', category: 'Settings', description: 'External API connections, adapters & tools', tab: 'Integrations', icon: LinkIcon },
     { name: 'Settings', category: 'Settings', description: 'Founder profile & system configuration', tab: 'Settings', icon: Settings },
   ];
 
@@ -961,7 +1138,7 @@ export function DashboardPage() {
               {/* Welcome Dashboard Header */}
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                  <h2 className="text-3xl font-bold tracking-tight">Founder Control Center</h2>
+                  <h2 className="text-3xl font-bold tracking-tight">Hello, {userName} 👋</h2>
                   <p className="text-gray-500 dark:text-founder-textMuted text-sm font-medium mt-1">Autonomous executive team executing across your business.</p>
                 </div>
               </div>
@@ -1626,55 +1803,552 @@ export function DashboardPage() {
             </motion.div>
           )}
 
-          {/* AUDIT LOGS TAB */}
-          {activeTab === 'Audit Logs' && (
+          {/* APPROVALS TAB WORKSPACE */}
+          {activeTab === 'Approvals' && (() => {
+            const pendingTasks = tasksList.filter(t => t.status === 'AWAITING_PLAN_APPROVAL');
+            const pendingDelegations: any[] = [];
+            tasksList.forEach(t => {
+              if (t.delegations) {
+                t.delegations.forEach((d: any) => {
+                  if (d.status === 'AWAITING_APPROVAL') {
+                    pendingDelegations.push({ ...d, taskTitle: t.title, taskId: t.id });
+                  }
+                });
+              }
+            });
+            const totalInWorking = pendingTasks.length + pendingDelegations.length;
+
+            const completedTasks = tasksList.filter(t => t.status === 'APPROVED' || t.status === 'COMPLETED');
+            const approvalLogs = auditLogs.filter(l => l.action_type === 'APPROVAL' || l.action_type === 'CONSEQUENTIAL_ACTION');
+            const totalCompleted = completedTasks.length + approvalLogs.length;
+
+            return (
+              <motion.div
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                className="space-y-6"
+              >
+                {/* Header & Sub-Tabs Switcher */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-200 dark:border-[#251B38] pb-4">
+                  <div>
+                    <h2 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">Founder Authorization & Approvals</h2>
+                    <p className="text-xs text-gray-500 mt-0.5">Manage in-progress pending authorizations or view completed approval history.</p>
+                  </div>
+
+                  {/* Sub-Tabs: In Working vs Completed */}
+                  <div className="flex items-center gap-2 bg-gray-100 dark:bg-[#1C162E] p-1.5 rounded-2xl border border-gray-200 dark:border-[#2D234A] shrink-0">
+                    <button
+                      onClick={() => setApprovalsSubTab('in_working')}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+                        approvalsSubTab === 'in_working'
+                          ? 'bg-[#8B5CF6] text-white shadow-md'
+                          : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                      }`}
+                    >
+                      <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                      In Working ({totalInWorking})
+                    </button>
+                    <button
+                      onClick={() => setApprovalsSubTab('completed')}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+                        approvalsSubTab === 'completed'
+                          ? 'bg-[#00DF89] text-gray-950 shadow-md'
+                          : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                      }`}
+                    >
+                      <CheckCircle2 size={14} />
+                      Completed ({totalCompleted})
+                    </button>
+                  </div>
+                </div>
+
+                {/* SUB-SECTION 1: IN WORKING (PENDING APPROVALS) */}
+                {approvalsSubTab === 'in_working' && (
+                  <div className="space-y-6">
+                    {totalInWorking === 0 ? (
+                      <div className="p-12 border border-dashed border-gray-200 dark:border-[#251B38] rounded-3xl text-center bg-white dark:bg-[#120E1E] space-y-3">
+                        <div className="w-14 h-14 rounded-2xl bg-emerald-500/15 text-emerald-500 flex items-center justify-center mx-auto">
+                          <CheckCircle2 size={28} />
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white">All Pending Approvals Are Up To Date!</h3>
+                        <p className="text-xs text-gray-500 max-w-md mx-auto">
+                          There are currently 0 active items awaiting founder authorization. New directive plans and consequential action requests will appear here.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {/* Pending CEO Plan Approvals (Level A) */}
+                        {pendingTasks.map((t: any) => {
+                          const plan = t.plan_data ? JSON.parse(t.plan_data) : {};
+                          return (
+                            <div key={t.id} className="p-6 rounded-3xl bg-white dark:bg-[#120E1E] border-2 border-amber-500/40 shadow-lg space-y-4">
+                              <div className="flex items-center justify-between">
+                                <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center gap-1.5">
+                                  <AlertTriangle size={12} /> LEVEL A: CEO PLAN APPROVAL REQUIRED
+                                </span>
+                                <span className="text-xs font-mono text-gray-400">Created: {t.date}</span>
+                              </div>
+
+                              <div>
+                                <h3 className="text-lg font-bold text-gray-900 dark:text-white">{t.title}</h3>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Goal: <strong className="text-gray-800 dark:text-gray-200">{plan.goal || t.title}</strong></p>
+                              </div>
+
+                              {plan.execution_steps && (
+                                <div className="p-4 rounded-2xl bg-gray-50 dark:bg-[#1C162E] border border-gray-200 dark:border-[#2D234A] space-y-2">
+                                  <p className="text-[10px] font-extrabold uppercase text-gray-400">Proposed Multi-Agent Execution Steps ({plan.execution_steps.length}):</p>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    {plan.execution_steps.map((s: any, idx: number) => (
+                                      <span key={idx} className="px-2.5 py-1 rounded-lg text-xs font-bold bg-white dark:bg-[#120E1E] border border-gray-200 dark:border-[#251B38] text-gray-800 dark:text-gray-200">
+                                        Step {idx + 1}: {s.agent} Agent
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              <div className="flex items-center justify-end gap-3 pt-2">
+                                <button
+                                  onClick={() => handleRejectPlan(t.id)}
+                                  className="px-5 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-500 font-bold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer"
+                                >
+                                  [ REJECT PLAN ]
+                                </button>
+                                <button
+                                  onClick={() => handleApprovePlan(t.id)}
+                                  className="px-6 py-2.5 bg-[#00DF89] hover:bg-[#00DF89]/90 text-gray-950 font-black rounded-xl text-xs flex items-center gap-1.5 shadow-md shadow-[#00DF89]/20 cursor-pointer"
+                                >
+                                  <CheckCircle2 size={16} /> [ APPROVE CEO PLAN ]
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+
+                        {/* Pending Delegation Result Approvals (Level B) */}
+                        {pendingDelegations.map((d: any, idx: number) => (
+                          <div key={idx} className="p-6 rounded-3xl bg-white dark:bg-[#120E1E] border border-gray-200 dark:border-[#251B38] shadow-md space-y-4">
+                            <div className="flex items-center justify-between">
+                              <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase bg-[#8B5CF6]/20 text-[#8B5CF6] border border-[#8B5CF6]/30">
+                                LEVEL B: {d.agent} RESULT AUTHORIZATION
+                              </span>
+                              <span className="text-xs text-gray-400">Task: <strong>{d.taskTitle}</strong></span>
+                            </div>
+
+                            <div>
+                              <h4 className="font-bold text-base text-gray-900 dark:text-white">{d.agent} Department Result Deliverable</h4>
+                              <p className="text-xs text-gray-700 dark:text-gray-300 mt-1">{d.decision_summary || d.task_description}</p>
+                            </div>
+
+                            <div className="flex items-center justify-end gap-3 pt-2">
+                              <button
+                                onClick={() => handleRejectAgentResult(d.id)}
+                                className="px-5 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-500 font-bold rounded-xl text-xs cursor-pointer"
+                              >
+                                [ REJECT RESULT ]
+                              </button>
+                              <button
+                                onClick={() => handleApproveAgentResult(d.id)}
+                                className="px-6 py-2.5 bg-[#00DF89] hover:bg-[#00DF89]/90 text-gray-950 font-black rounded-xl text-xs flex items-center gap-1.5 shadow-md shadow-[#00DF89]/20 cursor-pointer"
+                              >
+                                <CheckCircle2 size={16} /> [ AUTHORIZE RESULT ]
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* SUB-SECTION 2: COMPLETED (AUTHORIZATION HISTORY) */}
+                {approvalsSubTab === 'completed' && (
+                  <div className="space-y-6">
+                    {totalCompleted === 0 ? (
+                      <div className="p-12 border border-dashed border-gray-200 dark:border-[#251B38] rounded-3xl text-center bg-white dark:bg-[#120E1E] space-y-2 text-xs text-gray-400">
+                        No completed authorization records logged yet.
+                      </div>
+                    ) : (
+                      <div className="bg-white dark:bg-[#120E1E] border border-gray-200 dark:border-[#251B38] rounded-3xl overflow-hidden shadow-sm">
+                        <table className="w-full text-left text-xs font-sans">
+                          <thead className="bg-gray-50 dark:bg-[#1C162E] border-b border-gray-200 dark:border-[#251B38] text-[10px] uppercase font-bold text-gray-400">
+                            <tr>
+                              <th className="p-4">Authorization Item</th>
+                              <th className="p-4">Category</th>
+                              <th className="p-4">Status / Security</th>
+                              <th className="p-4">State</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100 dark:divide-[#251B38]/50">
+                            {completedTasks.map((t: any) => (
+                              <tr key={t.id} className="hover:bg-gray-50/50 dark:hover:bg-[#1C162E]/50">
+                                <td className="p-4 font-bold text-gray-900 dark:text-white">{t.title}</td>
+                                <td className="p-4 text-gray-400">CEO Master Plan</td>
+                                <td className="p-4">
+                                  <span className="px-2.5 py-1 rounded-lg text-[10px] font-black bg-emerald-500/15 text-emerald-500">
+                                    LEVEL A AUTHORIZED
+                                  </span>
+                                </td>
+                                <td className="p-4 text-emerald-500 font-extrabold flex items-center gap-1">
+                                  <CheckCircle2 size={14} /> APPROVED
+                                </td>
+                              </tr>
+                            ))}
+                            {approvalLogs.map((log: any) => (
+                              <tr key={log.id} className="hover:bg-gray-50/50 dark:hover:bg-[#1C162E]/50">
+                                <td className="p-4 font-bold text-gray-900 dark:text-white">{log.summary}</td>
+                                <td className="p-4 text-gray-400">{log.agent_name} Department</td>
+                                <td className="p-4">
+                                  <span className="px-2.5 py-1 rounded-lg text-[10px] font-black bg-[#8B5CF6]/15 text-[#8B5CF6]">
+                                    {log.action_type}
+                                  </span>
+                                </td>
+                                <td className="p-4 text-emerald-500 font-extrabold flex items-center gap-1">
+                                  <ShieldCheck size={14} /> VERIFIED
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </motion.div>
+            );
+          })()}
+
+          {/* EXECUTIONS TAB WORKSPACE */}
+          {activeTab === 'Executions' && (() => {
+            const executingTasks = tasksList.filter(t => t.status === 'RUNNING' || t.status === 'APPROVED');
+            const executingDelegations: any[] = [];
+            tasksList.forEach(t => {
+              if (t.delegations) {
+                t.delegations.forEach((d: any) => {
+                  if (d.status === 'RUNNING' || d.status === 'READY') {
+                    executingDelegations.push({ ...d, taskTitle: t.title, taskId: t.id });
+                  }
+                });
+              }
+            });
+            const totalExecuting = executingTasks.length + executingDelegations.length + (isAnalyzing || isRunningAgent ? 1 : 0);
+
+            const completedExecutionLogs = auditLogs.filter(l => l.action_type === 'EXECUTION' || l.action_type === 'PLAN_GENERATED');
+            const completedDelegations: any[] = [];
+            tasksList.forEach(t => {
+              if (t.delegations) {
+                t.delegations.forEach((d: any) => {
+                  if (d.status === 'COMPLETED') {
+                    completedDelegations.push({ ...d, taskTitle: t.title, taskId: t.id });
+                  }
+                });
+              }
+            });
+            const totalCompletedExecutions = completedExecutionLogs.length + completedDelegations.length;
+
+            return (
+              <motion.div
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                className="space-y-6"
+              >
+                {/* Header & Sub-Tabs Switcher */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-200 dark:border-[#251B38] pb-4">
+                  <div>
+                    <h2 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">Agent Execution Runtimes</h2>
+                    <p className="text-xs text-gray-500 mt-0.5">Monitor real-time active agent executions or inspect completed runtimes.</p>
+                  </div>
+
+                  {/* Sub-Tabs: Executing vs Completed */}
+                  <div className="flex items-center gap-2 bg-gray-100 dark:bg-[#1C162E] p-1.5 rounded-2xl border border-gray-200 dark:border-[#2D234A] shrink-0">
+                    <button
+                      onClick={() => setExecutionsSubTab('executing')}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+                        executionsSubTab === 'executing'
+                          ? 'bg-[#8B5CF6] text-white shadow-md'
+                          : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                      }`}
+                    >
+                      <span className="w-2 h-2 rounded-full bg-[#00DF89] animate-pulse" />
+                      Executing ({totalExecuting})
+                    </button>
+                    <button
+                      onClick={() => setExecutionsSubTab('completed')}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+                        executionsSubTab === 'completed'
+                          ? 'bg-[#00DF89] text-gray-950 shadow-md'
+                          : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                      }`}
+                    >
+                      <CheckCircle2 size={14} />
+                      Completed ({totalCompletedExecutions})
+                    </button>
+                  </div>
+                </div>
+
+                {/* SUB-SECTION 1: EXECUTING (ACTIVE RUNTIMES) */}
+                {executionsSubTab === 'executing' && (
+                  <div className="space-y-6">
+                    {/* Live Analyzing State Banner */}
+                    {(isAnalyzing || isRunningAgent) && (
+                      <div className="p-6 rounded-3xl bg-[#8B5CF6]/15 border-2 border-[#8B5CF6]/40 shadow-lg flex items-center gap-4">
+                        <Loader2 size={32} className="text-[#8B5CF6] animate-spin shrink-0" />
+                        <div>
+                          <h4 className="font-extrabold text-base text-gray-900 dark:text-white">Active Agent DAG Pipeline Executing...</h4>
+                          <p className="text-xs text-gray-600 dark:text-gray-300 mt-0.5">
+                            CEO Agent is actively orchestrating multi-agent sub-tasks and computing domain models.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {totalExecuting === 0 ? (
+                      <div className="p-12 border border-dashed border-gray-200 dark:border-[#251B38] rounded-3xl text-center bg-white dark:bg-[#120E1E] space-y-3">
+                        <div className="w-14 h-14 rounded-2xl bg-[#8B5CF6]/15 text-[#8B5CF6] flex items-center justify-center mx-auto">
+                          <Play size={28} fill="currentColor" />
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white">No Agent Tasks Currently Executing</h3>
+                        <p className="text-xs text-gray-500 max-w-md mx-auto">
+                          All multi-agent execution runtimes are currently idle. Submit a new directive in <strong>CEO Agent</strong> or launch a ready task below.
+                        </p>
+                        <button
+                          onClick={() => setActiveTab('CEO Agent')}
+                          className="px-5 py-2.5 bg-[#8B5CF6] hover:bg-[#7C3AED] text-white font-bold rounded-xl text-xs transition-colors cursor-pointer inline-flex items-center gap-1.5"
+                        >
+                          <Briefcase size={14} /> Open CEO Directives
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Executing / Ready Delegations */}
+                        {executingDelegations.map((d: any, idx: number) => {
+                          const config = getAgentConfig(d.agent);
+                          const Icon = config.icon;
+                          const isRunning = d.status === 'RUNNING';
+                          return (
+                            <div key={idx} className="p-6 rounded-3xl bg-white dark:bg-[#120E1E] border border-gray-200 dark:border-[#251B38] shadow-sm space-y-4 flex flex-col justify-between">
+                              <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-3">
+                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${config.bg} ${config.color} border ${config.border}`}>
+                                      <Icon size={18} />
+                                    </div>
+                                    <div>
+                                      <h4 className="font-bold text-sm text-gray-900 dark:text-white">{d.agent} Agent</h4>
+                                      <p className="text-[10px] text-gray-400">Order #{d.order_index || idx + 1}</p>
+                                    </div>
+                                  </div>
+                                  <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${
+                                    isRunning ? 'bg-[#8B5CF6]/20 text-[#8B5CF6] border border-[#8B5CF6]/30 flex items-center gap-1' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                                  }`}>
+                                    {isRunning && <Loader2 size={10} className="animate-spin" />}
+                                    {d.status}
+                                  </span>
+                                </div>
+
+                                <div className="space-y-1">
+                                  <p className="text-[10px] font-bold text-gray-400 uppercase">Directive Objective</p>
+                                  <p className="text-xs text-gray-700 dark:text-gray-300 font-medium leading-relaxed">
+                                    {d.task_description}
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="pt-4 border-t border-gray-100 dark:border-[#251B38]/60 flex items-center justify-between">
+                                <span className="text-[11px] text-gray-400">Task: <strong>{d.taskTitle}</strong></span>
+                                <button
+                                  onClick={() => {
+                                    const agentTab = d.agent.endsWith('Agent') ? d.agent : `${d.agent} Agent`;
+                                    setActiveTab(agentTab);
+                                  }}
+                                  className="px-3.5 py-1.5 bg-[#8B5CF6] hover:bg-[#7C3AED] text-white font-bold rounded-xl text-xs flex items-center gap-1 shadow-sm cursor-pointer"
+                                >
+                                  View Runtime &rarr;
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* SUB-SECTION 2: COMPLETED EXECUTIONS */}
+                {executionsSubTab === 'completed' && (
+                  <div className="space-y-6">
+                    {totalCompletedExecutions === 0 ? (
+                      <div className="p-12 border border-dashed border-gray-200 dark:border-[#251B38] rounded-3xl text-center bg-white dark:bg-[#120E1E] space-y-2 text-xs text-gray-400">
+                        No completed execution logs registered yet.
+                      </div>
+                    ) : (
+                      <div className="bg-white dark:bg-[#120E1E] border border-gray-200 dark:border-[#251B38] rounded-3xl overflow-hidden shadow-sm">
+                        <table className="w-full text-left text-xs font-sans">
+                          <thead className="bg-gray-50 dark:bg-[#1C162E] border-b border-gray-200 dark:border-[#251B38] text-[10px] uppercase font-bold text-gray-400">
+                            <tr>
+                              <th className="p-4">Timestamp</th>
+                              <th className="p-4">Agent / Runtime</th>
+                              <th className="p-4">Execution Summary</th>
+                              <th className="p-4">Runtime Metric</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100 dark:divide-[#251B38]/50">
+                            {completedDelegations.map((d: any, idx: number) => (
+                              <tr key={idx} className="hover:bg-gray-50/50 dark:hover:bg-[#1C162E]/50">
+                                <td className="p-4 font-mono text-[11px] text-gray-400">Completed</td>
+                                <td className="p-4 font-bold text-gray-900 dark:text-white">{d.agent} Agent</td>
+                                <td className="p-4 text-gray-700 dark:text-gray-300 font-medium">{d.decision_summary || d.task_description}</td>
+                                <td className="p-4 text-emerald-500 font-extrabold flex items-center gap-1">
+                                  <CheckCircle2 size={14} /> 100% Success
+                                </td>
+                              </tr>
+                            ))}
+                            {completedExecutionLogs.map((log: any) => (
+                              <tr key={log.id} className="hover:bg-gray-50/50 dark:hover:bg-[#1C162E]/50">
+                                <td className="p-4 font-mono text-[11px] text-gray-400">{new Date(log.created_at).toLocaleString()}</td>
+                                <td className="p-4 font-bold text-gray-900 dark:text-white">{log.agent_name}</td>
+                                <td className="p-4 text-gray-700 dark:text-gray-300 font-medium">{log.summary}</td>
+                                <td className="p-4 text-emerald-500 font-extrabold flex items-center gap-1">
+                                  <ShieldCheck size={14} /> Verified
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </motion.div>
+            );
+          })()}
+
+          {/* SETTINGS TAB WORKSPACE */}
+          {activeTab === 'Settings' && (
             <motion.div
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -15 }}
-              className="space-y-6"
+              className="space-y-6 max-w-3xl"
             >
               <div>
-                <h2 className="text-2xl font-bold tracking-tight">System Audit Trail</h2>
-                <p className="text-xs text-gray-500 mt-1">Complete, immutable log of all CEO orchestrations, agent task executions, and founder approvals.</p>
+                <h2 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">Founder Profile & Contact Settings</h2>
+                <p className="text-xs text-gray-500 mt-1">Configure your personal information, email, LinkedIn, and optional social/messaging channels.</p>
               </div>
 
-              <div className="bg-white dark:bg-[#120E1E] border border-gray-200 dark:border-[#251B38] rounded-2xl overflow-hidden shadow-sm">
-                <table className="w-full text-left text-xs font-sans">
-                  <thead className="bg-gray-50 dark:bg-[#1C162E] border-b border-gray-200 dark:border-[#251B38] text-[10px] uppercase font-bold text-gray-400">
-                    <tr>
-                      <th className="p-4">Timestamp</th>
-                      <th className="p-4">Agent / Initiator</th>
-                      <th className="p-4">Action Type</th>
-                      <th className="p-4">Summary</th>
-                      <th className="p-4">Security Level</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100 dark:divide-[#251B38]/50">
-                    {auditLogs.map((log) => (
-                      <tr key={log.id} className="hover:bg-gray-50/50 dark:hover:bg-[#1C162E]/50 transition-colors">
-                        <td className="p-4 font-mono text-[11px] text-gray-400">{new Date(log.created_at).toLocaleString()}</td>
-                        <td className="p-4 font-bold text-gray-900 dark:text-white">{log.agent_name}</td>
-                        <td className="p-4">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold ${
-                            log.action_type === 'CONSEQUENTIAL_ACTION' ? 'bg-amber-500/15 text-amber-500' :
-                            log.action_type === 'APPROVAL' ? 'bg-emerald-500/15 text-emerald-500' :
-                            log.action_type === 'EXECUTION' ? 'bg-[#8B5CF6]/15 text-[#8B5CF6]' :
-                            'bg-gray-100 dark:bg-[#1C162E] text-gray-400'
-                          }`}>
-                            {log.action_type}
-                          </span>
-                        </td>
-                        <td className="p-4 text-gray-700 dark:text-gray-300 font-medium">{log.summary}</td>
-                        <td className="p-4">
-                          <span className="text-emerald-500 font-bold flex items-center gap-1">
-                            <ShieldCheck size={14} /> Verified
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="bg-white dark:bg-[#120E1E] border border-gray-200 dark:border-[#251B38] rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
+                <form onSubmit={handleProfileSave} className="space-y-6">
+                  {/* Primary Profile Details */}
+                  <div className="space-y-4">
+                    <h3 className="text-xs font-extrabold uppercase tracking-wider text-[#8B5CF6] border-b border-gray-100 dark:border-[#251B38]/60 pb-2">
+                      Primary Profile Info
+                    </h3>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-medium">
+                      <div>
+                        <label className="block text-gray-400 uppercase font-bold text-[10px] mb-1.5">Full Name *</label>
+                        <input
+                          type="text"
+                          value={profileForm.name}
+                          onChange={e => setProfileForm({ ...profileForm, name: e.target.value })}
+                          placeholder="e.g. Rahul Sharma"
+                          className="w-full px-4 py-3 bg-gray-50 dark:bg-[#1C162E] border border-gray-200 dark:border-[#2D234A] rounded-xl text-gray-900 dark:text-white outline-none focus:border-[#8B5CF6] transition-colors"
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-gray-400 uppercase font-bold text-[10px] mb-1.5">Email Address *</label>
+                        <input
+                          type="email"
+                          value={profileForm.email}
+                          onChange={e => setProfileForm({ ...profileForm, email: e.target.value })}
+                          placeholder="founder@founderos.io"
+                          className="w-full px-4 py-3 bg-gray-50 dark:bg-[#1C162E] border border-gray-200 dark:border-[#2D234A] rounded-xl text-gray-900 dark:text-white outline-none focus:border-[#8B5CF6] transition-colors"
+                          required
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Professional & Social Channels */}
+                  <div className="space-y-4 pt-2">
+                    <h3 className="text-xs font-extrabold uppercase tracking-wider text-[#00DF89] border-b border-gray-100 dark:border-[#251B38]/60 pb-2">
+                      Professional & Messaging Channels
+                    </h3>
+
+                    <div className="space-y-4 text-xs font-medium">
+                      <div>
+                        <label className="block text-gray-400 uppercase font-bold text-[10px] mb-1.5">
+                          LinkedIn Profile URL / Handle *
+                        </label>
+                        <input
+                          type="text"
+                          value={profileForm.linkedin}
+                          onChange={e => setProfileForm({ ...profileForm, linkedin: e.target.value })}
+                          placeholder="https://linkedin.com/in/yourprofile or @handle"
+                          className="w-full px-4 py-3 bg-gray-50 dark:bg-[#1C162E] border border-gray-200 dark:border-[#2D234A] rounded-xl text-gray-900 dark:text-white outline-none focus:border-[#00DF89] transition-colors"
+                          required
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-gray-400 uppercase font-bold text-[10px] mb-1.5">
+                            Twitter / X Handle <span className="text-gray-500 font-normal">(Optional)</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={profileForm.twitter}
+                            onChange={e => setProfileForm({ ...profileForm, twitter: e.target.value })}
+                            placeholder="@founder"
+                            className="w-full px-4 py-3 bg-gray-50 dark:bg-[#1C162E] border border-gray-200 dark:border-[#2D234A] rounded-xl text-gray-900 dark:text-white outline-none focus:border-[#8B5CF6] transition-colors"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-gray-400 uppercase font-bold text-[10px] mb-1.5">
+                            Telegram Handle / Phone <span className="text-gray-500 font-normal">(Optional)</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={profileForm.telegram}
+                            onChange={e => setProfileForm({ ...profileForm, telegram: e.target.value })}
+                            placeholder="@telegram_user"
+                            className="w-full px-4 py-3 bg-gray-50 dark:bg-[#1C162E] border border-gray-200 dark:border-[#2D234A] rounded-xl text-gray-900 dark:text-white outline-none focus:border-[#8B5CF6] transition-colors"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-gray-400 uppercase font-bold text-[10px] mb-1.5">
+                            WhatsApp Number <span className="text-gray-500 font-normal">(Optional)</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={profileForm.whatsapp}
+                            onChange={e => setProfileForm({ ...profileForm, whatsapp: e.target.value })}
+                            placeholder="+91 9876543210"
+                            className="w-full px-4 py-3 bg-gray-50 dark:bg-[#1C162E] border border-gray-200 dark:border-[#2D234A] rounded-xl text-gray-900 dark:text-white outline-none focus:border-[#8B5CF6] transition-colors"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Submit Button */}
+                  <div className="pt-4 border-t border-gray-200 dark:border-[#251B38] flex items-center justify-end">
+                    <button
+                      type="submit"
+                      disabled={isSavingProfile}
+                      className="px-8 py-3 bg-[#8B5CF6] hover:bg-[#7C3AED] text-white font-extrabold rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-[#8B5CF6]/25 transition-all cursor-pointer transform hover:scale-[1.02]"
+                    >
+                      {isSavingProfile ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+                      <span>Save Founder Settings</span>
+                    </button>
+                  </div>
+                </form>
               </div>
             </motion.div>
           )}
@@ -1727,15 +2401,137 @@ export function DashboardPage() {
                     </div>
                   </div>
 
-                  <button 
-                    onClick={() => setActiveTab('CEO Agent')}
-                    className="px-4 py-2 bg-gray-100 dark:bg-[#1C162E] hover:bg-gray-200 dark:hover:bg-[#251B38] text-gray-700 dark:text-gray-200 font-bold rounded-xl text-xs flex items-center gap-1.5 transition-colors shrink-0"
-                  >
-                    <Briefcase size={14} /> View Full CEO Plan
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {agentShortName === 'Hiring' && (
+                      <>
+                        <button 
+                          onClick={() => setIsCreatingJobModalOpen(true)}
+                          className="px-4 py-2 bg-[#8B5CF6] hover:bg-[#7C3AED] text-white font-bold rounded-xl text-xs flex items-center gap-1.5 transition-colors shrink-0 shadow-sm"
+                        >
+                          <Sparkles size={14} /> Create Job Requisition
+                        </button>
+                        {selectedJobId && (
+                          <button 
+                            onClick={() => setIsAddCandidateModalOpen(true)}
+                            className="px-4 py-2 bg-[#00DF89] hover:bg-[#00DF89]/90 text-gray-950 font-extrabold rounded-xl text-xs flex items-center gap-1.5 transition-colors shrink-0 shadow-sm"
+                          >
+                            <Users size={14} /> Add Candidate
+                          </button>
+                        )}
+                      </>
+                    )}
+                    <button 
+                      onClick={() => setActiveTab('CEO Agent')}
+                      className="px-4 py-2 bg-gray-100 dark:bg-[#1C162E] hover:bg-gray-200 dark:hover:bg-[#251B38] text-gray-700 dark:text-gray-200 font-bold rounded-xl text-xs flex items-center gap-1.5 transition-colors shrink-0"
+                    >
+                      <Briefcase size={14} /> View CEO Plan
+                    </button>
+                  </div>
                 </div>
 
-                {!del ? (
+                {/* HIRING PIPELINE & JOBS PANEL */}
+                {agentShortName === 'Hiring' && (
+                  <div className="space-y-6">
+                    {/* Active Job Requisitions Tabs */}
+                    {hiringJobs.length > 0 && (
+                      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
+                        <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider shrink-0">Hiring Requisitions ({hiringJobs.length}):</span>
+                        {hiringJobs.map((j: any) => (
+                          <button
+                            key={j.id}
+                            onClick={() => {
+                              setSelectedJobId(j.id);
+                              fetchJobDetail(j.id);
+                            }}
+                            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold shrink-0 transition-all border ${
+                              selectedJobId === j.id
+                                ? 'bg-[#8B5CF6]/20 border-[#8B5CF6] text-white shadow-sm'
+                                : 'bg-white dark:bg-[#120E1E] border-gray-200 dark:border-[#251B38] text-gray-600 dark:text-gray-400'
+                            }`}
+                          >
+                            💼 {j.title} ({j.candidates_count} candidates)
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Selected Job Detail Card */}
+                    {selectedJobDetail && (
+                      <div className="bg-white dark:bg-[#120E1E] border border-gray-200 dark:border-[#251B38] rounded-2xl p-6 space-y-4 shadow-sm">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-gray-100 dark:border-[#251B38]/60">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-500">
+                                {selectedJobDetail.department} • {selectedJobDetail.seniority}
+                              </span>
+                              <span className="text-[10px] font-bold text-gray-400">
+                                Comp: {selectedJobDetail.target_compensation || 'Standard'}
+                              </span>
+                            </div>
+                            <h3 className="text-xl font-black text-gray-900 dark:text-white mt-1">{selectedJobDetail.title}</h3>
+                          </div>
+
+                          <div className="flex items-center gap-2 text-xs font-mono">
+                            <span className="px-2.5 py-1 rounded-lg bg-[#8B5CF6]/15 text-[#8B5CF6] font-bold border border-[#8B5CF6]/30">
+                              ✓ {selectedJobDetail.mcq_questions_count} MCQs Auto-Generated
+                            </span>
+                            <span className="px-2.5 py-1 rounded-lg bg-[#00DF89]/15 text-[#00DF89] font-bold border border-[#00DF89]/30">
+                              ✓ Python Coding Assessment Ready
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Candidates Roster */}
+                        <div className="space-y-3 pt-1">
+                          <div className="flex justify-between items-center">
+                            <h4 className="text-xs font-extrabold uppercase tracking-wider text-gray-400">Candidate Pipeline ({selectedJobDetail.candidates?.length || 0})</h4>
+                            <button onClick={() => setIsAddCandidateModalOpen(true)} className="text-xs font-bold text-[#00DF89] hover:underline flex items-center gap-1">
+                              + Add & Screen Candidate
+                            </button>
+                          </div>
+
+                          {selectedJobDetail.candidates?.length === 0 ? (
+                            <div className="p-8 text-center border border-dashed border-gray-200 dark:border-[#251B38] rounded-xl text-xs text-gray-400">
+                              No candidates screened yet. Click <strong>+ Add & Screen Candidate</strong> above.
+                            </div>
+                          ) : (
+                            <div className="space-y-2.5">
+                              {selectedJobDetail.candidates.map((cand: any) => (
+                                <div key={cand.id} className="p-4 rounded-xl bg-gray-50 dark:bg-[#1C162E] border border-gray-200 dark:border-[#2D234A] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                  <div className="space-y-1">
+                                    <div className="flex items-center gap-2">
+                                      <h5 className="font-bold text-sm text-gray-900 dark:text-white">{cand.name}</h5>
+                                      <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${
+                                        cand.status === 'APPROVED' ? 'bg-emerald-500/20 text-emerald-400' :
+                                        cand.status === 'REJECTED' ? 'bg-red-500/20 text-red-400' :
+                                        cand.status === 'RECOMMENDED' ? 'bg-[#00DF89]/20 text-[#00DF89]' :
+                                        'bg-amber-500/20 text-amber-400'
+                                      }`}>
+                                        {cand.status}
+                                      </span>
+                                    </div>
+                                    <p className="text-xs text-gray-400">{cand.email} • {cand.experience_years} yrs exp • Resume Match: <strong className="text-[#8B5CF6]">{cand.resume_match_score}%</strong></p>
+                                  </div>
+
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      onClick={() => navigate(`/hiring/candidates/${cand.id}`)}
+                                      className="px-3.5 py-1.5 bg-[#8B5CF6] hover:bg-[#7C3AED] text-white font-bold rounded-xl text-xs flex items-center gap-1 shadow-sm cursor-pointer"
+                                    >
+                                      View Profile & Evaluation
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {!del && agentShortName !== 'Hiring' ? (
                   <div className="p-12 border border-dashed border-gray-200 dark:border-[#251B38] rounded-2xl text-center bg-white dark:bg-[#120E1E] space-y-3">
                     <Bot size={40} className="mx-auto text-gray-400 opacity-60" />
                     <h3 className="text-lg font-bold text-gray-900 dark:text-white">No Active Tasks Assigned to {agentShortName} Agent</h3>
@@ -1942,9 +2738,17 @@ export function DashboardPage() {
                                     <p className="text-xs text-gray-500">{cand.experience} • {cand.current_company} • Expected: {cand.expected_salary}</p>
                                     <p className="text-[11px] text-gray-700 dark:text-gray-300 italic">{cand.interview_recommendation}</p>
                                   </div>
-                                  <span className={`text-xs font-bold px-3 py-1.5 rounded-xl ${selectedCandidate === cand.name ? 'bg-[#8B5CF6] text-white' : 'bg-gray-200 dark:bg-[#120E1E] text-gray-600 dark:text-gray-400'}`}>
-                                    {selectedCandidate === cand.name ? 'Selected for Offer' : 'Select'}
-                                  </span>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        navigate(`/hiring/candidates/${cand.id || 1}`);
+                                      }}
+                                      className="px-3 py-1.5 bg-[#8B5CF6] hover:bg-[#7C3AED] text-white font-bold rounded-xl text-xs flex items-center gap-1 shadow-sm cursor-pointer"
+                                    >
+                                      View Profile & Evaluation
+                                    </button>
+                                  </div>
                                 </div>
                               ))}
                             </div>
@@ -2440,6 +3244,124 @@ export function DashboardPage() {
                 <span>Done</span>
                 <ArrowRight size={18} />
               </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* CREATE JOB REQUISITION MODAL */}
+      <AnimatePresence>
+        {isCreatingJobModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsCreatingJobModalOpen(false)} className="absolute inset-0 bg-gray-900/60 dark:bg-black/80 backdrop-blur-md" />
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="relative w-full max-w-lg bg-white dark:bg-[#120E1E] border border-gray-200 dark:border-[#251B38] rounded-3xl p-6 sm:p-8 z-10 shadow-2xl space-y-6">
+              <div className="flex items-center justify-between pb-4 border-b border-gray-200 dark:border-[#251B38]">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#8B5CF6]/20 text-[#8B5CF6] flex items-center justify-center font-bold">
+                    <Briefcase size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">Create Job Requisition</h3>
+                    <p className="text-xs text-gray-400">Auto-generate 20 MCQs and Python Coding Assessment</p>
+                  </div>
+                </div>
+                <button onClick={() => setIsCreatingJobModalOpen(false)} className="p-2 text-gray-400 hover:text-white">
+                  <X size={18} />
+                </button>
+              </div>
+
+              <form onSubmit={handleCreateJobSubmit} className="space-y-4 text-xs font-medium">
+                <div>
+                  <label className="block text-gray-400 uppercase font-bold text-[10px] mb-1">Job Title</label>
+                  <input type="text" value={newJobForm.title} onChange={e => setNewJobForm({...newJobForm, title: e.target.value})} placeholder="e.g. React Developer" className="w-full px-4 py-2.5 bg-gray-50 dark:bg-[#1C162E] border border-gray-200 dark:border-[#2D234A] rounded-xl text-gray-900 dark:text-white outline-none focus:border-[#8B5CF6]" required />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-gray-400 uppercase font-bold text-[10px] mb-1">Department</label>
+                    <input type="text" value={newJobForm.department} onChange={e => setNewJobForm({...newJobForm, department: e.target.value})} className="w-full px-4 py-2.5 bg-gray-50 dark:bg-[#1C162E] border border-gray-200 dark:border-[#2D234A] rounded-xl text-gray-900 dark:text-white outline-none focus:border-[#8B5CF6]" />
+                  </div>
+                  <div>
+                    <label className="block text-gray-400 uppercase font-bold text-[10px] mb-1">Seniority</label>
+                    <input type="text" value={newJobForm.seniority} onChange={e => setNewJobForm({...newJobForm, seniority: e.target.value})} className="w-full px-4 py-2.5 bg-gray-50 dark:bg-[#1C162E] border border-gray-200 dark:border-[#2D234A] rounded-xl text-gray-900 dark:text-white outline-none focus:border-[#8B5CF6]" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-gray-400 uppercase font-bold text-[10px] mb-1">Target Compensation</label>
+                    <input type="text" value={newJobForm.target_compensation} onChange={e => setNewJobForm({...newJobForm, target_compensation: e.target.value})} placeholder="e.g. $90,000 / yr" className="w-full px-4 py-2.5 bg-gray-50 dark:bg-[#1C162E] border border-gray-200 dark:border-[#2D234A] rounded-xl text-gray-900 dark:text-white outline-none focus:border-[#8B5CF6]" />
+                  </div>
+                  <div>
+                    <label className="block text-gray-400 uppercase font-bold text-[10px] mb-1">Required Exp (Years)</label>
+                    <input type="number" value={newJobForm.experience_years} onChange={e => setNewJobForm({...newJobForm, experience_years: Number(e.target.value)})} className="w-full px-4 py-2.5 bg-gray-50 dark:bg-[#1C162E] border border-gray-200 dark:border-[#2D234A] rounded-xl text-gray-900 dark:text-white outline-none focus:border-[#8B5CF6]" min={0} />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-gray-400 uppercase font-bold text-[10px] mb-1">Required Skills (Comma-separated)</label>
+                  <input type="text" value={newJobForm.required_skills} onChange={e => setNewJobForm({...newJobForm, required_skills: e.target.value})} placeholder="React, JavaScript, TypeScript, Python" className="w-full px-4 py-2.5 bg-gray-50 dark:bg-[#1C162E] border border-gray-200 dark:border-[#2D234A] rounded-xl text-gray-900 dark:text-white outline-none focus:border-[#8B5CF6]" />
+                </div>
+                <div className="pt-3 flex justify-end gap-3">
+                  <button type="button" onClick={() => setIsCreatingJobModalOpen(false)} className="px-4 py-2 bg-gray-100 dark:bg-[#1C162E] text-gray-400 rounded-xl text-xs">Cancel</button>
+                  <button type="submit" disabled={isCreatingJob} className="px-6 py-2 bg-[#8B5CF6] hover:bg-[#7C3AED] text-white font-bold rounded-xl text-xs flex items-center gap-1.5">
+                    {isCreatingJob ? <Loader2 className="animate-spin" size={14} /> : <Sparkles size={14} />} Create Job Pipeline
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ADD & SCREEN CANDIDATE MODAL */}
+      <AnimatePresence>
+        {isAddCandidateModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsAddCandidateModalOpen(false)} className="absolute inset-0 bg-gray-900/60 dark:bg-black/80 backdrop-blur-md" />
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="relative w-full max-w-lg bg-white dark:bg-[#120E1E] border border-gray-200 dark:border-[#251B38] rounded-3xl p-6 sm:p-8 z-10 shadow-2xl space-y-6">
+              <div className="flex items-center justify-between pb-4 border-b border-gray-200 dark:border-[#251B38]">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#00DF89]/20 text-[#00DF89] flex items-center justify-center font-bold">
+                    <Users size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">Add & Screen Candidate</h3>
+                    <p className="text-xs text-gray-400">Screen candidate against job requirements</p>
+                  </div>
+                </div>
+                <button onClick={() => setIsAddCandidateModalOpen(false)} className="p-2 text-gray-400 hover:text-white">
+                  <X size={18} />
+                </button>
+              </div>
+
+              <form onSubmit={handleAddCandidateSubmit} className="space-y-4 text-xs font-medium">
+                <div>
+                  <label className="block text-gray-400 uppercase font-bold text-[10px] mb-1">Candidate Full Name</label>
+                  <input type="text" value={newCandidateForm.name} onChange={e => setNewCandidateForm({...newCandidateForm, name: e.target.value})} placeholder="e.g. Priya Sharma" className="w-full px-4 py-2.5 bg-gray-50 dark:bg-[#1C162E] border border-gray-200 dark:border-[#2D234A] rounded-xl text-gray-900 dark:text-white outline-none focus:border-[#00DF89]" required />
+                </div>
+                <div>
+                  <label className="block text-gray-400 uppercase font-bold text-[10px] mb-1">Candidate Email</label>
+                  <input type="email" value={newCandidateForm.email} onChange={e => setNewCandidateForm({...newCandidateForm, email: e.target.value})} placeholder="priya.sharma@example.com" className="w-full px-4 py-2.5 bg-gray-50 dark:bg-[#1C162E] border border-gray-200 dark:border-[#2D234A] rounded-xl text-gray-900 dark:text-white outline-none focus:border-[#00DF89]" required />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-gray-400 uppercase font-bold text-[10px] mb-1">Skills (Comma-separated)</label>
+                    <input type="text" value={newCandidateForm.skills} onChange={e => setNewCandidateForm({...newCandidateForm, skills: e.target.value})} className="w-full px-4 py-2.5 bg-gray-50 dark:bg-[#1C162E] border border-gray-200 dark:border-[#2D234A] rounded-xl text-gray-900 dark:text-white outline-none focus:border-[#00DF89]" />
+                  </div>
+                  <div>
+                    <label className="block text-gray-400 uppercase font-bold text-[10px] mb-1">Years of Exp</label>
+                    <input type="number" value={newCandidateForm.experience_years} onChange={e => setNewCandidateForm({...newCandidateForm, experience_years: Number(e.target.value)})} className="w-full px-4 py-2.5 bg-gray-50 dark:bg-[#1C162E] border border-gray-200 dark:border-[#2D234A] rounded-xl text-gray-900 dark:text-white outline-none focus:border-[#00DF89]" min={0} />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-gray-400 uppercase font-bold text-[10px] mb-1">Resume Summary / Text</label>
+                  <textarea value={newCandidateForm.resume_text} onChange={e => setNewCandidateForm({...newCandidateForm, resume_text: e.target.value})} placeholder="3 years building React applications..." className="w-full px-4 py-2.5 bg-gray-50 dark:bg-[#1C162E] border border-gray-200 dark:border-[#2D234A] rounded-xl text-gray-900 dark:text-white outline-none focus:border-[#00DF89]" rows={3} />
+                </div>
+                <div className="pt-3 flex justify-end gap-3">
+                  <button type="button" onClick={() => setIsAddCandidateModalOpen(false)} className="px-4 py-2 bg-gray-100 dark:bg-[#1C162E] text-gray-400 rounded-xl text-xs">Cancel</button>
+                  <button type="submit" disabled={isAddingCandidate} className="px-6 py-2 bg-[#00DF89] hover:bg-[#00DF89]/90 text-gray-950 font-black rounded-xl text-xs flex items-center gap-1.5">
+                    {isAddingCandidate ? <Loader2 className="animate-spin" size={14} /> : <CheckCircle2 size={14} />} Screen Candidate
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </div>
         )}
