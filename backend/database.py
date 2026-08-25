@@ -4,7 +4,13 @@ from sqlalchemy.orm import sessionmaker
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
+# Explicitly load single root .env file
+root_env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '.env'))
+if os.path.exists(root_env_path):
+    load_dotenv(root_env_path)
+else:
+    load_dotenv()
+
 
 # We will use a local SQLite DB if POSTGRES_URL isn't provided to prevent crashes if postgres isn't running yet,
 # but the user requested PostgreSQL.
