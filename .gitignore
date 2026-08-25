@@ -8,6 +8,7 @@ __pycache__/
 # Environment & Secrets
 .env
 .env.*
+.vercel
 !.env.example
 
 # Build outputs
