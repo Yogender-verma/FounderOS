@@ -41,7 +41,9 @@ import {
   ShieldCheck,
   Eye,
   RefreshCw,
-  ArrowRight
+  ArrowRight,
+  Share2,
+  ExternalLink
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTheme } from '../components/ThemeProvider';
@@ -76,6 +78,8 @@ export function DashboardPage() {
     nextAgent?: string;
     isAllComplete?: boolean;
     isRejected?: boolean;
+    isOpenLinkedIn?: boolean;
+    linkedinPost?: string;
   } | null>(null);
 
   // Global Search state & refs
@@ -344,12 +348,34 @@ export function DashboardPage() {
           }
         }
 
+        const isMarketing = updatedDel.agent === 'Marketing';
+        let linkedinPostText = '';
+        if (isMarketing && updatedDel.result_output) {
+          try {
+            const parsed = JSON.parse(updatedDel.result_output);
+            linkedinPostText = parsed.linkedin_post || '';
+          } catch (e) {
+            console.error(e);
+          }
+        }
+
+        if (isMarketing && linkedinPostText) {
+          try {
+            await navigator.clipboard.writeText(linkedinPostText);
+          } catch (e) {
+            console.error(e);
+          }
+          window.open('https://www.linkedin.com/feed/?shareActive=true', '_blank');
+        }
+
         // Display the Big Green "Approved" modal!
         setApprovedModalData({
           agent: updatedDel.agent,
           stepOrder: updatedDel.order_index || 1,
           nextAgent: nextDel ? nextDel.agent : undefined,
-          isAllComplete: isAllDone
+          isAllComplete: isAllDone,
+          isOpenLinkedIn: isMarketing,
+          linkedinPost: linkedinPostText
         });
       }
     } catch (err) {
@@ -1796,17 +1822,28 @@ export function DashboardPage() {
                             <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400">Generated Campaign Collateral</h4>
                             <div className="space-y-2">
                               <div className="flex justify-between items-center text-xs font-bold text-gray-700 dark:text-gray-300">
-                                <span>LinkedIn Launch Post</span>
-                                <button 
-                                  onClick={() => {
-                                    navigator.clipboard.writeText(resultObj.linkedin_post);
-                                    setCopiedText(true);
-                                    setTimeout(() => setCopiedText(false), 2000);
-                                  }}
-                                  className="text-[11px] text-[#8B5CF6] hover:underline flex items-center gap-1"
-                                >
-                                  {copiedText ? <Check size={12} /> : <Copy size={12} />} Copy
-                                </button>
+                                <span className="flex items-center gap-1.5"><Megaphone size={14} className="text-[#0077B5]" /> LinkedIn Launch Post</span>
+                                <div className="flex items-center gap-2">
+                                  <button 
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(resultObj.linkedin_post);
+                                      setCopiedText(true);
+                                      setTimeout(() => setCopiedText(false), 2000);
+                                    }}
+                                    className="text-[11px] text-[#8B5CF6] hover:underline flex items-center gap-1 font-bold cursor-pointer"
+                                  >
+                                    {copiedText ? <Check size={12} /> : <Copy size={12} />} Copy Text
+                                  </button>
+                                  <button 
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(resultObj.linkedin_post);
+                                      window.open('https://www.linkedin.com/feed/?shareActive=true', '_blank');
+                                    }}
+                                    className="px-3 py-1 bg-[#0077B5] hover:bg-[#006097] text-white rounded-lg text-[11px] font-extrabold flex items-center gap-1 shadow-sm transition-all cursor-pointer"
+                                  >
+                                    <Share2 size={12} /> Open LinkedIn & Post
+                                  </button>
+                                </div>
                               </div>
                               <pre className="bg-gray-900 text-gray-100 p-4 rounded-2xl text-xs font-sans whitespace-pre-wrap leading-relaxed border border-gray-800">
                                 {resultObj.linkedin_post}
@@ -2307,6 +2344,35 @@ export function DashboardPage() {
                     : `${approvedModalData.agent} Agent task has been completed and verified.`}
                 </p>
               </div>
+
+              {/* LinkedIn Auto-Opened Banner */}
+              {approvedModalData.isOpenLinkedIn && (
+                <div className="p-4 rounded-2xl bg-[#0077B5]/10 border border-[#0077B5]/30 space-y-3 text-left">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-[#0077B5] font-bold text-xs">
+                      <Share2 size={16} />
+                      <span>LinkedIn Auto-Opened!</span>
+                    </div>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#0077B5]/20 text-[#0077B5]">
+                      TEXT COPIED ✓
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-700 dark:text-gray-300">
+                    The generated post has been automatically copied to your clipboard. Paste (Ctrl+V) into LinkedIn, then click <strong>Done</strong> below to return to CEO Agent.
+                  </p>
+                  <button
+                    onClick={() => {
+                      if (approvedModalData.linkedinPost) {
+                        navigator.clipboard.writeText(approvedModalData.linkedinPost);
+                      }
+                      window.open('https://www.linkedin.com/feed/?shareActive=true', '_blank');
+                    }}
+                    className="w-full py-2 bg-[#0077B5] hover:bg-[#006097] text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm"
+                  >
+                    <ExternalLink size={14} /> Re-Open LinkedIn & Copy Post
+                  </button>
+                </div>
+              )}
 
               {/* Prominent Done Button -> Redirects to CEO Agent */}
               <button
